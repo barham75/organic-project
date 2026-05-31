@@ -434,6 +434,44 @@ const reactions: Reaction[] = [
   },
 ];
 
+const additionalReactions: Reaction[] = [
+  { id: "alkene-epoxidation", title: "Epoxidation of an Alkene", substrate: "Alkene", product: "Epoxide", category: "Oxidation", startingGroup: "Alkene", productGroup: "Epoxide", reagents: "RCO3H", equation: "R-CH=CH-R -> epoxide", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "alkene-dihydroxylation", title: "Syn Dihydroxylation of an Alkene", substrate: "Alkene", product: "Vicinal diol", category: "Oxidation", startingGroup: "Alkene", productGroup: "Alcohol", reagents: "OsO4, then NaHSO3", equation: "R-CH=CH-R -> R-CH(OH)-CH(OH)-R", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "alkyne-hx", title: "Hydrohalogenation of an Alkyne", substrate: "Alkyne", product: "Vinyl halide", category: "Addition", startingGroup: "Alkyne", productGroup: "Alkyl halide", reagents: "HX, 1 equivalent", equation: "R-C#CH + HBr -> R-C(Br)=CH2", note: "", reference: "McMurry 7e, Chapter 9" },
+  { id: "alkyne-halogenation", title: "Halogenation of an Alkyne", substrate: "Alkyne", product: "Dihaloalkene", category: "Addition", startingGroup: "Alkyne", productGroup: "Alkyl halide", reagents: "Br2, 1 equivalent", equation: "R-C#C-R + Br2 -> R-C(Br)=C(Br)-R", note: "", reference: "McMurry 7e, Chapter 9" },
+  { id: "alkyne-acetylide", title: "Alkylation of a Terminal Alkyne", substrate: "Terminal alkyne", product: "Longer alkyne", category: "Carbon-carbon bond formation", startingGroup: "Alkyne", productGroup: "Alkyne", reagents: "1. NaNH2  2. R-X", equation: "R-C#CH -> R-C#C-R'", note: "", reference: "McMurry 7e, Chapter 9" },
+  { id: "halide-e1", title: "E1 Elimination", substrate: "Alkyl halide", product: "Alkene", category: "Elimination", startingGroup: "Alkyl halide", productGroup: "Alkene", reagents: "Weak base, polar protic solvent, heat", equation: "(CH3)3C-Br -> (CH3)2C=CH2", note: "", reference: "McMurry 7e, Chapter 11" },
+  { id: "alcohol-hx", title: "Conversion of an Alcohol with HX", substrate: "Alcohol", product: "Alkyl halide", category: "Substitution", startingGroup: "Alcohol", productGroup: "Alkyl halide", reagents: "HCl, HBr, or HI", equation: "R-OH + HBr -> R-Br + H2O", note: "", reference: "McMurry 7e, Chapter 17" },
+  { id: "alcohol-pbr3", title: "Conversion of an Alcohol with PBr3", substrate: "Alcohol", product: "Alkyl bromide", category: "Substitution", startingGroup: "Alcohol", productGroup: "Alkyl halide", reagents: "PBr3", equation: "R-OH -> R-Br", note: "", reference: "McMurry 7e, Chapter 17" },
+  { id: "alcohol-socl2", title: "Conversion of an Alcohol with SOCl2", substrate: "Alcohol", product: "Alkyl chloride", category: "Substitution", startingGroup: "Alcohol", productGroup: "Alkyl halide", reagents: "SOCl2, pyridine", equation: "R-OH -> R-Cl", note: "", reference: "McMurry 7e, Chapter 17" },
+  { id: "alcohol-tosylate", title: "Formation of a Tosylate", substrate: "Alcohol", product: "Alkyl tosylate", category: "Activation of alcohol", startingGroup: "Alcohol", productGroup: "Sulfonate ester", reagents: "TsCl, pyridine", equation: "R-OH -> R-OTs", note: "", reference: "McMurry 7e, Chapter 17" },
+  { id: "ether-williamson", title: "Williamson Ether Synthesis", substrate: "Alkoxide and primary alkyl halide", product: "Ether", category: "Substitution", startingGroup: "Ether and epoxide", productGroup: "Ether", reagents: "R-O-, R'-X", equation: "R-O- + R'-Br -> R-O-R' + Br-", note: "", reference: "McMurry 7e, Chapter 18" },
+  { id: "ether-cleavage", title: "Acidic Cleavage of an Ether", substrate: "Ether", product: "Alcohol and alkyl halide", category: "Cleavage", startingGroup: "Ether and epoxide", productGroup: "Alkyl halide", reagents: "HBr or HI, heat", equation: "R-O-R' + HBr -> R-OH + R'-Br", note: "", reference: "McMurry 7e, Chapter 18" },
+  { id: "epoxide-opening-acid", title: "Acid-Catalyzed Opening of an Epoxide", substrate: "Epoxide", product: "Substituted alcohol", category: "Ring opening", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "H+, Nu-H", equation: "epoxide + H2O -> HO-CH2-CH2-OH", note: "", reference: "McMurry 7e, Chapter 18" },
+  { id: "epoxide-grignard", title: "Opening of an Epoxide with a Grignard Reagent", substrate: "Epoxide", product: "Alcohol", category: "Carbon-carbon bond formation", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "1. RMgBr  2. H3O+", equation: "epoxide + R-MgBr -> R-CH2-CH2-OH", note: "", reference: "McMurry 7e, Chapter 18" },
+  { id: "carbonyl-cyanohydrin", title: "Cyanohydrin Formation", substrate: "Aldehyde or ketone", product: "Cyanohydrin", category: "Nucleophilic addition", startingGroup: "Aldehyde and Ketone", productGroup: "Cyanohydrin", reagents: "HCN, KCN", equation: "R2C=O + HCN -> R2C(OH)-CN", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-hydrate", title: "Hydration of a Carbonyl Compound", substrate: "Aldehyde or ketone", product: "Geminal diol", category: "Nucleophilic addition", startingGroup: "Aldehyde and Ketone", productGroup: "Alcohol", reagents: "H2O, H+ or OH-", equation: "R2C=O + H2O -> R2C(OH)2", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-acetal", title: "Acetal Formation", substrate: "Aldehyde or ketone", product: "Acetal", category: "Protection of carbonyl", startingGroup: "Aldehyde and Ketone", productGroup: "Acetal", reagents: "2 ROH, H+", equation: "R2C=O + 2ROH -> R2C(OR)2 + H2O", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-imine", title: "Imine Formation", substrate: "Aldehyde or ketone", product: "Imine", category: "Condensation", startingGroup: "Aldehyde and Ketone", productGroup: "Imine", reagents: "RNH2, H+", equation: "R2C=O + RNH2 -> R2C=NR + H2O", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-enamine", title: "Enamine Formation", substrate: "Aldehyde or ketone", product: "Enamine", category: "Condensation", startingGroup: "Aldehyde and Ketone", productGroup: "Enamine", reagents: "R2NH, H+", equation: "R2C=O + R2NH -> enamine + H2O", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-clemmensen", title: "Clemmensen Reduction", substrate: "Aldehyde or ketone", product: "Alkane", category: "Reduction", startingGroup: "Aldehyde and Ketone", productGroup: "Alkane", reagents: "Zn(Hg), HCl", equation: "R2C=O -> R2CH2", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "carbonyl-wolff-kishner", title: "Wolff-Kishner Reduction", substrate: "Aldehyde or ketone", product: "Alkane", category: "Reduction", startingGroup: "Aldehyde and Ketone", productGroup: "Alkane", reagents: "H2NNH2, KOH, heat", equation: "R2C=O -> R2CH2", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "aldehyde-oxidation", title: "Oxidation of an Aldehyde", substrate: "Aldehyde", product: "Carboxylic acid", category: "Oxidation", startingGroup: "Aldehyde and Ketone", productGroup: "Carboxylic acid", reagents: "Ag2O or CrO3", equation: "R-CHO -> R-COOH", note: "", reference: "McMurry 7e, Chapter 19" },
+  { id: "acid-socl2", title: "Preparation of an Acid Chloride", substrate: "Carboxylic acid", product: "Acid chloride", category: "Acyl substitution", startingGroup: "Carboxylic acid", productGroup: "Carboxylic acid derivative", reagents: "SOCl2", equation: "R-COOH -> R-COCl", note: "", reference: "McMurry 7e, Chapter 21" },
+  { id: "ester-reduction", title: "Reduction of an Ester", substrate: "Ester", product: "Alcohol", category: "Reduction", startingGroup: "Carboxylic acid derivative", productGroup: "Alcohol", reagents: "1. LiAlH4  2. H3O+", equation: "R-COOR' -> R-CH2OH + R'-OH", note: "", reference: "McMurry 7e, Chapter 21" },
+  { id: "amide-reduction", title: "Reduction of an Amide", substrate: "Amide", product: "Amine", category: "Reduction", startingGroup: "Carboxylic acid derivative", productGroup: "Amine", reagents: "1. LiAlH4  2. H2O", equation: "R-CONR2 -> R-CH2NR2", note: "", reference: "McMurry 7e, Chapter 21" },
+  { id: "ester-grignard", title: "Addition of a Grignard Reagent to an Ester", substrate: "Ester", product: "Tertiary alcohol", category: "Carbon-carbon bond formation", startingGroup: "Carboxylic acid derivative", productGroup: "Alcohol", reagents: "1. 2 RMgBr  2. H3O+", equation: "R-COOR' + 2R''MgBr -> R-C(OH)(R'')2", note: "", reference: "McMurry 7e, Chapter 21" },
+  { id: "nitrile-hydrolysis", title: "Hydrolysis of a Nitrile", substrate: "Nitrile", product: "Carboxylic acid", category: "Hydrolysis", startingGroup: "Nitrile", productGroup: "Carboxylic acid", reagents: "H3O+, heat", equation: "R-CN -> R-COOH", note: "", reference: "McMurry 7e, Chapter 20" },
+  { id: "nitrile-reduction", title: "Reduction of a Nitrile", substrate: "Nitrile", product: "Amine", category: "Reduction", startingGroup: "Nitrile", productGroup: "Amine", reagents: "1. LiAlH4  2. H2O", equation: "R-CN -> R-CH2NH2", note: "", reference: "McMurry 7e, Chapter 24" },
+  { id: "benzene-sulfonation", title: "Sulfonation of Benzene", substrate: "Benzene", product: "Benzenesulfonic acid", category: "Electrophilic aromatic substitution", startingGroup: "Aromatic compound", productGroup: "Aromatic compound", reagents: "SO3, H2SO4", equation: "C6H6 -> C6H5-SO3H", note: "", reference: "McMurry 7e, Chapter 16" },
+  { id: "benzene-fc-acylation", title: "Friedel-Crafts Acylation", substrate: "Benzene", product: "Aryl ketone", category: "Electrophilic aromatic substitution", startingGroup: "Aromatic compound", productGroup: "Carbonyl compound", reagents: "RCOCl, AlCl3", equation: "C6H6 + R-COCl -> C6H5-CO-R", note: "", reference: "McMurry 7e, Chapter 16" },
+  { id: "benzene-side-chain-oxidation", title: "Oxidation of an Alkylbenzene Side Chain", substrate: "Alkylbenzene", product: "Benzoic acid", category: "Oxidation", startingGroup: "Aromatic compound", productGroup: "Carboxylic acid", reagents: "KMnO4, OH-, heat; then H3O+", equation: "C6H5-CH2R -> C6H5-COOH", note: "", reference: "McMurry 7e, Chapter 16" },
+  { id: "amine-alkylation", title: "Alkylation of an Amine", substrate: "Amine", product: "More substituted amine", category: "Substitution", startingGroup: "Amine", productGroup: "Amine", reagents: "R-X", equation: "R-NH2 + R'-Br -> R-NH-R'", note: "", reference: "McMurry 7e, Chapter 24" },
+  { id: "amine-acylation", title: "Acylation of an Amine", substrate: "Amine", product: "Amide", category: "Acyl substitution", startingGroup: "Amine", productGroup: "Amide", reagents: "RCOCl, base", equation: "R-NH2 + R'-COCl -> R'-CONH-R", note: "", reference: "McMurry 7e, Chapter 24" },
+];
+
+reactions.push(...additionalReactions);
+
 type ReactionDetail = {
   note: string;
   example: string;
@@ -699,6 +737,17 @@ const reactionDetails: Record<string, ReactionDetail> = {
   },
 };
 
+function detailFor(reaction: Reaction): ReactionDetail {
+  return reactionDetails[reaction.id] ?? {
+    note: `${reaction.title} is a standard ${reaction.category.toLowerCase()} transformation. Compare the functional group in the starting material with the functional group in the product and check the reagent set carefully.`,
+    example: reaction.equation,
+    exampleReagents: reaction.reagents,
+    stereo: reaction.category.includes("Addition")
+      ? "Check whether the mechanism imposes syn or anti addition and whether a new stereogenic center or E/Z alkene is formed."
+      : "No single stereochemical outcome should be assumed without examining the substrate and mechanism. Existing remote stereogenic centers are normally retained unless a reacting center is involved.",
+  };
+}
+
 const all = "All";
 
 export default function ReactionsPage() {
@@ -855,20 +904,20 @@ export default function ReactionsPage() {
 
               <section className="mt-6 border-t border-slate-200 pt-5">
                 <h3 className="font-bold">Key point</h3>
-                <p className="mt-2 leading-7 text-slate-700">{reactionDetails[selected.id].note}</p>
+                <p className="mt-2 leading-7 text-slate-700">{detailFor(selected).note}</p>
               </section>
 
               <section className="mt-4 border-l-4 border-amber-400 bg-amber-50 p-4">
                 <h3 className="font-bold text-amber-950">Example</h3>
                 <ChemicalScheme
-                  equation={reactionDetails[selected.id].example}
-                  reagents={reactionDetails[selected.id].exampleReagents}
+                  equation={detailFor(selected).example}
+                  reagents={detailFor(selected).exampleReagents}
                 />
               </section>
 
               <section className="mt-4 border-l-4 border-violet-400 bg-violet-50 p-4">
                 <h3 className="font-bold text-violet-900">Stereochemistry</h3>
-                <p className="mt-1 leading-7 text-violet-900">{reactionDetails[selected.id].stereo}</p>
+                <p className="mt-1 leading-7 text-violet-900">{detailFor(selected).stereo}</p>
               </section>
             </article>
           )}
