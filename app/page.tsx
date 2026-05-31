@@ -49,7 +49,19 @@ export default function HomePage() {
             </p>
           </Link>
 
-          {["Diastereomers", "E/Z Isomerism"].map((topic) => (
+          <Link
+            href="/stereochemistry/configurational/diastereomers"
+            className="rounded-2xl border border-violet-200 bg-violet-50 p-6 hover:bg-violet-100"
+          >
+            <h2 className="text-xl font-bold text-violet-900">
+              Diastereomers
+            </h2>
+            <p className="mt-2 text-violet-800">
+              Compare molecules with multiple stereocenters and explore meso compounds.
+            </p>
+          </Link>
+
+          {["E/Z Isomerism"].map((topic) => (
             <div key={topic} className="rounded-2xl border bg-slate-100 p-6 text-slate-500">
               <h2 className="text-xl font-bold">{topic}</h2>
               <p className="mt-2">Coming soon</p>

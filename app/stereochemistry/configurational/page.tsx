@@ -16,7 +16,8 @@ const topics = [
   {
     title: "Diastereomers",
     description: "Compare stereoisomers with multiple stereocenters, including meso compounds.",
-    ready: false,
+    href: "/stereochemistry/configurational/diastereomers",
+    ready: true,
   },
   {
     title: "E/Z Isomerism",
