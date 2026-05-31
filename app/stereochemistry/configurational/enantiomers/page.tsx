@@ -101,33 +101,33 @@ function MoleculeModel({
     { x: 228, y: 185 },
     { x: 45, y: 185 },
   ];
-  const scaleX = mirrored ? -1 : 1;
+  const mirrorX = (x: number) => (mirrored ? 274 - x : x);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <svg viewBox="0 0 274 270" className="aspect-square w-full" aria-label={`${mirrored ? "Mirror image" : "Original"} model of ${example.name}`}>
         <rect width="274" height="270" fill="#f8fafc" />
-        <g style={{ transform: `translateX(137px) rotate(${rotation}deg) scaleX(${scaleX}) translateX(-137px)`, transformOrigin: "137px 135px" }}>
-          <line x1="137" y1="130" x2={points[0].x} y2={points[0].y} stroke="#334155" strokeWidth="6" strokeLinecap="round" />
-          <line x1="137" y1="130" x2={points[1].x} y2={points[1].y} stroke="#334155" strokeWidth="6" strokeLinecap="round" />
-          <polygon points="137,130 34,174 54,202" fill="#334155" />
+        <g transform={`rotate(${rotation} 137 135)`}>
+          <line x1="137" y1="130" x2={mirrorX(points[0].x)} y2={points[0].y} stroke="#334155" strokeWidth="6" strokeLinecap="round" />
+          <line x1="137" y1="130" x2={mirrorX(points[1].x)} y2={points[1].y} stroke="#334155" strokeWidth="6" strokeLinecap="round" />
+          <polygon points={`137,130 ${mirrorX(34)},174 ${mirrorX(54)},202`} fill="#334155" />
           <g stroke="#64748b" strokeWidth="3">
-            <line x1="137" y1="130" x2="141" y2="148" />
-            <line x1="137" y1="134" x2="145" y2="171" />
-            <line x1="137" y1="138" x2="149" y2="194" />
-            <line x1="137" y1="142" x2="153" y2="217" />
+            <line x1="137" y1="130" x2={mirrorX(141)} y2="148" />
+            <line x1="137" y1="134" x2={mirrorX(145)} y2="171" />
+            <line x1="137" y1="138" x2={mirrorX(149)} y2="194" />
+            <line x1="137" y1="142" x2={mirrorX(153)} y2="217" />
           </g>
 
           {example.groups.slice(0, 3).map((group, index) => (
             <g key={`${group.label}-${index}`}>
-              <circle cx={points[index].x} cy={points[index].y} r="28" fill={group.color} />
-              <text x={points[index].x} y={points[index].y + 6} textAnchor="middle" fill="white" fontSize="16" fontWeight="700">
+              <circle cx={mirrorX(points[index].x)} cy={points[index].y} r="28" fill={group.color} />
+              <text x={mirrorX(points[index].x)} y={points[index].y + 6} textAnchor="middle" fill="white" fontSize="16" fontWeight="700">
                 {showLabels ? group.label : "?"}
               </text>
             </g>
           ))}
-          <circle cx="155" cy="222" r="27" fill={example.groups[3].color} />
-          <text x="155" y="228" textAnchor="middle" fill="white" fontSize="16" fontWeight="700">
+          <circle cx={mirrorX(155)} cy="222" r="27" fill={example.groups[3].color} />
+          <text x={mirrorX(155)} y="228" textAnchor="middle" fill="white" fontSize="16" fontWeight="700">
             {showLabels ? example.groups[3].label : "?"}
           </text>
           <circle cx="137" cy="130" r="31" fill="#0f172a" />
