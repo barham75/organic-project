@@ -434,6 +434,170 @@ const reactions: Reaction[] = [
   },
 ];
 
+type ReactionDetail = {
+  note: string;
+  example: string;
+  stereo: string;
+};
+
+const reactionDetails: Record<string, ReactionDetail> = {
+  "alkene-hx": {
+    note: "The major product normally follows Markovnikov orientation because protonation favors the more stable carbocation intermediate.",
+    example: "Example: propene + HBr gives mainly 2-bromopropane, not 1-bromopropane.",
+    stereo: "The reaction is not stereospecific. A planar carbocation can be attacked from either face; a new stereogenic center may therefore form as a mixture.",
+  },
+  "alkene-hbr-peroxide": {
+    note: "Peroxides switch HBr addition to a radical pathway and reverse the usual regiochemistry. This effect is not generally useful with HCl or HI.",
+    example: "Example: propene + HBr / ROOR gives mainly 1-bromopropane.",
+    stereo: "The radical pathway is not stereospecific. If stereogenic centers are created, a mixture can result.",
+  },
+  "alkene-hydration": {
+    note: "Acid-catalyzed hydration gives a Markovnikov alcohol through a carbocation, so rearrangements can occur.",
+    example: "Example: 3,3-dimethylbut-1-ene can rearrange before water attacks, giving a rearranged alcohol.",
+    stereo: "The planar carbocation intermediate makes the reaction non-stereospecific. Attack can occur from either face.",
+  },
+  "alkene-oxymercuration": {
+    note: "Oxymercuration-demercuration gives Markovnikov hydration without a free carbocation, so skeletal rearrangement is avoided.",
+    example: "Example: 3,3-dimethylbut-1-ene gives the unrearranged Markovnikov alcohol.",
+    stereo: "The overall laboratory sequence is commonly treated as not stereospecific after demercuration, although the initial opening of the mercurinium ion is anti.",
+  },
+  "alkene-hydroboration": {
+    note: "Hydroboration-oxidation gives an anti-Markovnikov alcohol and avoids carbocation rearrangement.",
+    example: "Example: propene gives propan-1-ol after 1. BH3, THF 2. H2O2, OH-.",
+    stereo: "H and OH are installed syn, on the same face of the alkene. Addition to either face of an achiral alkene can give an enantiomeric pair.",
+  },
+  "alkene-halogenation": {
+    note: "A bridged halonium ion prevents free rotation and controls the addition geometry.",
+    example: "Example: cyclohexene + Br2 gives trans-1,2-dibromocyclohexane.",
+    stereo: "Halogenation is stereospecific anti addition: the two halogens enter from opposite faces.",
+  },
+  "alkene-halohydrin": {
+    note: "Water opens the halonium ion at the more substituted carbon, so OH and halogen show predictable regiochemistry.",
+    example: "Example: propene + Br2 / H2O gives mainly 1-bromopropan-2-ol.",
+    stereo: "Formation is anti: OH and Br are installed on opposite faces.",
+  },
+  "alkene-hydrogenation": {
+    note: "Hydrogen adds to the double bond on the surface of a metal catalyst.",
+    example: "Example: cyclohexene + H2 / Pd gives cyclohexane.",
+    stereo: "Catalytic hydrogenation is syn addition: both hydrogen atoms are delivered to the same face.",
+  },
+  "alkene-ozonolysis": {
+    note: "Ozonolysis cleaves the C=C bond and converts each alkene carbon into a carbonyl carbon.",
+    example: "Example: 2-methylpropene gives propanone and methanal after reductive workup.",
+    stereo: "The original E/Z geometry is lost when the double bond is cleaved; stereochemistry is not retained in the carbonyl fragments.",
+  },
+  "alkyne-hydrogenation": {
+    note: "With an ordinary metal catalyst and excess hydrogen, an alkyne is reduced fully to an alkane.",
+    example: "Example: but-2-yne + excess H2 / Pd gives butane.",
+    stereo: "The final alkane usually has no alkene geometry. Any intermediate cis-alkene is further reduced.",
+  },
+  "alkyne-lindlar": {
+    note: "The poisoned Lindlar catalyst stops reduction at the alkene stage.",
+    example: "Example: but-2-yne + H2 / Lindlar catalyst gives cis-but-2-ene.",
+    stereo: "Syn addition produces the cis or Z alkene.",
+  },
+  "alkyne-na-nh3": {
+    note: "Dissolving-metal reduction stops at the alkene stage and complements Lindlar reduction.",
+    example: "Example: but-2-yne + Na / NH3(l) gives trans-but-2-ene.",
+    stereo: "The stepwise pathway produces the trans or E alkene.",
+  },
+  "alkyne-hydration": {
+    note: "Mercury-catalyzed hydration gives an enol that rapidly tautomerizes. A terminal alkyne gives a methyl ketone.",
+    example: "Example: propyne + HgSO4, H2SO4, H2O gives propanone.",
+    stereo: "E/Z information is not retained because the enol tautomerizes to a carbonyl compound.",
+  },
+  "alkyne-hydroboration": {
+    note: "Hydroboration-oxidation of a terminal alkyne gives an aldehyde after enol tautomerization.",
+    example: "Example: propyne gives propanal after 1. (sia)2BH 2. H2O2, OH-.",
+    stereo: "The hydroboration step is syn, but the final aldehyde does not retain alkene geometry.",
+  },
+  "halide-sn2": {
+    note: "SN2 is a one-step backside attack. It is favored by methyl and primary substrates with a strong nucleophile.",
+    example: "Example: (R)-2-bromobutane + OH- gives the inverted 2-butanol configuration through substitution.",
+    stereo: "SN2 causes inversion of configuration at the reacting stereogenic carbon, often called Walden inversion.",
+  },
+  "halide-sn1": {
+    note: "SN1 proceeds through a carbocation and is favored when that carbocation is stable. Rearrangements can occur.",
+    example: "Example: tert-butyl bromide in water gives tert-butanol by solvolysis.",
+    stereo: "A planar carbocation can be attacked from either face. A chiral substrate commonly gives substantial racemization.",
+  },
+  "halide-e2": {
+    note: "E2 occurs in one concerted step. The base removes a beta-H while the leaving group departs.",
+    example: "Example: 2-bromobutane + EtO- / EtOH, heat gives mainly but-2-ene, with the trans alkene usually more abundant.",
+    stereo: "The beta-H and leaving group must be anti-periplanar. In cyclohexanes this usually requires a trans-diaxial arrangement.",
+  },
+  "alcohol-oxidation-primary": {
+    note: "A primary alcohol can stop at an aldehyde with a mild oxidant or continue to a carboxylic acid with stronger aqueous conditions.",
+    example: "Example: butan-1-ol + PCC gives butanal; with Jones reagent it gives butanoic acid.",
+    stereo: "Any stereogenic center at the oxidized carbon is lost when the planar carbonyl forms. Remote stereogenic centers remain unchanged.",
+  },
+  "alcohol-oxidation-secondary": {
+    note: "A secondary alcohol is oxidized to a ketone.",
+    example: "Example: cyclohexanol + PCC gives cyclohexanone.",
+    stereo: "A stereogenic alcohol carbon loses its configuration when it becomes a trigonal-planar carbonyl carbon.",
+  },
+  "alcohol-dehydration": {
+    note: "Acid-catalyzed dehydration usually favors the more substituted alkene and can involve rearrangement when a carbocation forms.",
+    example: "Example: 2-methylbutan-2-ol + H2SO4, heat gives mainly 2-methylbut-2-ene.",
+    stereo: "When E/Z products are possible, the more stable E alkene is often favored, but the outcome depends on substrate and mechanism.",
+  },
+  "epoxide-opening-basic": {
+    note: "Under basic conditions, a nucleophile attacks the less substituted epoxide carbon by an SN2-like pathway.",
+    example: "Example: propylene oxide + CH3O-, then H3O+ gives nucleophilic attack mainly at the terminal carbon.",
+    stereo: "Backside attack inverts the attacked epoxide carbon and gives anti opening.",
+  },
+  "carbonyl-reduction": {
+    note: "Hydride reduction converts aldehydes to primary alcohols and ketones to secondary alcohols.",
+    example: "Example: propanone + NaBH4 gives propan-2-ol.",
+    stereo: "A planar carbonyl can be attacked from either face. Reduction of an achiral ketone that creates a stereocenter often gives a racemic mixture.",
+  },
+  "carbonyl-grignard": {
+    note: "A Grignard reagent adds a carbon group to a carbonyl carbon and forms a new C-C bond after workup.",
+    example: "Example: propanone + CH3MgBr, then H3O+ gives 2-methylpropan-2-ol.",
+    stereo: "Attack can occur from either face of a planar carbonyl. A newly formed stereocenter can therefore give stereoisomers.",
+  },
+  "carbonyl-wittig": {
+    note: "The Wittig reaction replaces the carbonyl oxygen with a C=C bond.",
+    example: "Example: cyclohexanone + Ph3P=CH2 gives methylenecyclohexane.",
+    stereo: "E/Z selectivity depends on the ylide and reaction conditions. Do not assume a single alkene geometry without checking the ylide type.",
+  },
+  "acid-esterification": {
+    note: "Fischer esterification is an acid-catalyzed equilibrium; removing water helps drive ester formation.",
+    example: "Example: ethanoic acid + ethanol / H+ gives ethyl ethanoate and water.",
+    stereo: "No characteristic stereochemical change occurs at the acyl carbon. Existing remote stereocenters are normally retained.",
+  },
+  "ester-hydrolysis": {
+    note: "Base-promoted ester hydrolysis, or saponification, gives a carboxylate salt and an alcohol.",
+    example: "Example: ethyl ethanoate + OH- gives ethanoate and ethanol.",
+    stereo: "The acyl carbon is trigonal planar during substitution; the reaction normally does not alter remote stereocenters.",
+  },
+  "acid-chloride-amide": {
+    note: "Acid chlorides react readily with ammonia or amines to form amides.",
+    example: "Example: ethanoyl chloride + excess NH3 gives ethanamide.",
+    stereo: "No characteristic stereochemical change occurs unless a chiral amine or chiral acyl fragment is used.",
+  },
+  "benzene-bromination": {
+    note: "Electrophilic aromatic substitution preserves aromaticity by replacing a ring hydrogen with bromine.",
+    example: "Example: benzene + Br2 / FeBr3 gives bromobenzene.",
+    stereo: "The benzene ring is planar. This reaction is governed by substitution position rather than R/S or E/Z stereochemistry.",
+  },
+  "benzene-nitration": {
+    note: "The nitronium ion acts as the electrophile in aromatic nitration.",
+    example: "Example: benzene + HNO3 / H2SO4 gives nitrobenzene.",
+    stereo: "The aromatic ring remains planar. Regiochemistry matters for substituted benzenes, but there is no intrinsic stereospecific outcome.",
+  },
+  "benzene-friedel-crafts": {
+    note: "Friedel-Crafts alkylation attaches an alkyl group to an aromatic ring. Carbocation rearrangement and polyalkylation can occur.",
+    example: "Example: benzene + CH3Cl / AlCl3 gives methylbenzene.",
+    stereo: "The aromatic substitution step is not stereospecific. A rearranged electrophile can change the carbon skeleton.",
+  },
+  "amine-reductive-amination": {
+    note: "Reductive amination converts an aldehyde or ketone into an amine through an imine or iminium intermediate.",
+    example: "Example: propanone + CH3NH2, then NaBH3CN gives N-methylpropan-2-amine.",
+    stereo: "Reduction of a planar imine or iminium ion can occur from either face. A newly created stereocenter can form as a mixture unless a chiral influence is present.",
+  },
+};
+
 const all = "All";
 
 export default function ReactionsPage() {
@@ -595,15 +759,18 @@ export default function ReactionsPage() {
 
               <section className="mt-6 border-t border-slate-200 pt-5">
                 <h3 className="font-bold">Key point</h3>
-                <p className="mt-2 leading-7 text-slate-700">{selected.note}</p>
+                <p className="mt-2 leading-7 text-slate-700">{reactionDetails[selected.id].note}</p>
               </section>
 
-              {selected.stereo && (
-                <section className="mt-4 border-l-4 border-violet-400 bg-violet-50 p-4">
-                  <h3 className="font-bold text-violet-900">Stereochemistry</h3>
-                  <p className="mt-1 leading-7 text-violet-900">{selected.stereo}</p>
-                </section>
-              )}
+              <section className="mt-4 border-l-4 border-amber-400 bg-amber-50 p-4">
+                <h3 className="font-bold text-amber-950">Example</h3>
+                <p className="mt-1 leading-7 text-amber-950">{reactionDetails[selected.id].example}</p>
+              </section>
+
+              <section className="mt-4 border-l-4 border-violet-400 bg-violet-50 p-4">
+                <h3 className="font-bold text-violet-900">Stereochemistry</h3>
+                <p className="mt-1 leading-7 text-violet-900">{reactionDetails[selected.id].stereo}</p>
+              </section>
             </article>
           )}
         </section>
