@@ -37,7 +37,19 @@ export default function HomePage() {
             </p>
           </Link>
 
-          {["Enantiomers", "Diastereomers", "E/Z Isomerism"].map((topic) => (
+          <Link
+            href="/stereochemistry/configurational/enantiomers"
+            className="rounded-2xl border border-cyan-200 bg-cyan-50 p-6 hover:bg-cyan-100"
+          >
+            <h2 className="text-xl font-bold text-cyan-900">
+              Enantiomers
+            </h2>
+            <p className="mt-2 text-cyan-800">
+              Compare non-superimposable mirror images and identify R/S pairs.
+            </p>
+          </Link>
+
+          {["Diastereomers", "E/Z Isomerism"].map((topic) => (
             <div key={topic} className="rounded-2xl border bg-slate-100 p-6 text-slate-500">
               <h2 className="text-xl font-bold">{topic}</h2>
               <p className="mt-2">Coming soon</p>

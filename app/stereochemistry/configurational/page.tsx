@@ -10,7 +10,8 @@ const topics = [
   {
     title: "Enantiomers",
     description: "Compare non-superimposable mirror images and connect R/S pairs.",
-    ready: false,
+    href: "/stereochemistry/configurational/enantiomers",
+    ready: true,
   },
   {
     title: "Diastereomers",
