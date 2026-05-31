@@ -84,6 +84,18 @@ export default function HomePage() {
               Interactive CIP priority lab with a tetrahedral model and graded questions.
             </p>
           </Link>
+
+          <Link
+            href="/reactions"
+            className="rounded-2xl border border-orange-200 bg-orange-50 p-6 hover:bg-orange-100"
+          >
+            <h2 className="text-xl font-bold text-orange-900">
+              Organic Reactions Atlas
+            </h2>
+            <p className="mt-2 text-orange-800">
+              Browse organic reactions by starting functional group or expected product.
+            </p>
+          </Link>
         </div>
       </section>
     </main>
