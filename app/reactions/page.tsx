@@ -440,6 +440,71 @@ type ReactionDetail = {
   stereo: string;
 };
 
+function FormulaText({ value }: { value: string }) {
+  const parts = value.split(/(\d+)/);
+  return (
+    <span className="whitespace-nowrap font-serif text-xl font-semibold text-slate-900">
+      {parts.map((part, index) =>
+        /^\d+$/.test(part) ? <sub key={`${part}-${index}`}>{part}</sub> : <span key={`${part}-${index}`}>{part}</span>,
+      )}
+    </span>
+  );
+}
+
+function Bond({ type }: { type: string }) {
+  if (type === "=") {
+    return <span className="grid w-5 gap-1"><i className="block h-0.5 bg-slate-800" /><i className="block h-0.5 bg-slate-800" /></span>;
+  }
+  if (type === "#") {
+    return <span className="grid w-5 gap-0.5"><i className="block h-px bg-slate-800" /><i className="block h-px bg-slate-800" /><i className="block h-px bg-slate-800" /></span>;
+  }
+  return <span className="block h-0.5 w-5 bg-slate-800" />;
+}
+
+function Molecule({ value }: { value: string }) {
+  const parts = value.trim().split(/(-|=|#)/).filter(Boolean);
+  return (
+    <span className="inline-flex min-h-12 items-center">
+      {parts.map((part, index) =>
+        part === "-" || part === "=" || part === "#" ? <Bond key={`${part}-${index}`} type={part} /> : <FormulaText key={`${part}-${index}`} value={part} />,
+      )}
+    </span>
+  );
+}
+
+function FormulaSide({ value }: { value: string }) {
+  return (
+    <div className="flex min-w-max items-center justify-center gap-3">
+      {value.split(/\s+\+\s+/).map((molecule, index, items) => (
+        <span key={`${molecule}-${index}`} className="contents">
+          <Molecule value={molecule} />
+          {index < items.length - 1 && <span className="text-2xl font-semibold text-slate-500">+</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ReactionScheme({ reaction }: { reaction: Reaction }) {
+  const [left, right = ""] = reaction.equation.split(/\s+->\s+/);
+  return (
+    <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white px-4 py-6">
+      <div className="mx-auto flex min-w-[720px] items-center justify-center gap-5">
+        <FormulaSide value={left} />
+        <div className="w-48 shrink-0 text-center">
+          <p className="mb-2 min-h-5 font-mono text-xs font-semibold text-teal-800">{reaction.reagents}</p>
+          <svg viewBox="0 0 190 28" className="h-7 w-full" aria-hidden="true">
+            <line x1="3" y1="14" x2="178" y2="14" stroke="#0f766e" strokeWidth="3" />
+            <polyline points="162,3 179,14 162,25" fill="none" stroke="#0f766e" strokeWidth="3" />
+          </svg>
+        </div>
+        <FormulaSide value={right} />
+      </div>
+      <p className="mt-5 text-xs text-slate-500">Original reaction scheme based on {reaction.reference}.</p>
+    </div>
+  );
+}
+
 const reactionDetails: Record<string, ReactionDetail> = {
   "alkene-hx": {
     note: "The major product normally follows Markovnikov orientation because protonation favors the more stable carbocation intermediate.",
@@ -742,12 +807,7 @@ export default function ReactionsPage() {
 
               <section className="mt-6">
                 <h3 className="text-sm font-bold text-slate-500">REACTION SCHEME</h3>
-                <p
-                  className="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-4 font-mono text-lg text-white"
-                  dir="ltr"
-                >
-                  {selected.equation}
-                </p>
+                <ReactionScheme reaction={selected} />
               </section>
 
               <section className="mt-6">
