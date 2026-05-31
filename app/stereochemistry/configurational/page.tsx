@@ -22,7 +22,8 @@ const topics = [
   {
     title: "E/Z Isomerism",
     description: "Apply CIP rules on each alkene carbon to distinguish E from Z.",
-    ready: false,
+    href: "/stereochemistry/configurational/ez",
+    ready: true,
   },
 ];
 

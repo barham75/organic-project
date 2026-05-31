@@ -61,12 +61,17 @@ export default function HomePage() {
             </p>
           </Link>
 
-          {["E/Z Isomerism"].map((topic) => (
-            <div key={topic} className="rounded-2xl border bg-slate-100 p-6 text-slate-500">
-              <h2 className="text-xl font-bold">{topic}</h2>
-              <p className="mt-2">Coming soon</p>
-            </div>
-          ))}
+          <Link
+            href="/stereochemistry/configurational/ez"
+            className="rounded-2xl border border-rose-200 bg-rose-50 p-6 hover:bg-rose-100"
+          >
+            <h2 className="text-xl font-bold text-rose-900">
+              E/Z Isomerism
+            </h2>
+            <p className="mt-2 text-rose-800">
+              Apply CIP priorities on both alkene carbons and distinguish E from Z.
+            </p>
+          </Link>
 
           <Link
             href="/stereochemistry/configurational/rs"
