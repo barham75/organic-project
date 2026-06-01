@@ -2,7 +2,13 @@
 
 import { forwardRef, useEffect, useRef, useState } from "react";
 
-type Prediction = { product: string; note: string };
+type Prediction = {
+  product: string;
+  note: string;
+  expectedProduct: string;
+  generalScheme: string;
+  exactStructure: boolean;
+};
 type ChemicalEditor = { getSmiles: () => Promise<string>; setMolecule: (structure: string) => Promise<void> };
 type EditorWindow = Window & typeof globalThis & { ketcher?: ChemicalEditor };
 const editorUrl = "/standalone/index.html";
@@ -26,7 +32,13 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "amide-dehydration": (smiles) => replace(smiles, /C\(=O\)N/g, "C#N", "Dehydration converted the primary amide into a nitrile."),
 };
 
-export default function ProductPredictor({ reactionId }: { reactionId: string }) {
+type ProductPredictorProps = {
+  reactionId: string;
+  expectedProduct: string;
+  generalScheme: string;
+};
+
+export default function ProductPredictor({ reactionId, expectedProduct, generalScheme }: ProductPredictorProps) {
   const substrateRef = useRef<HTMLIFrameElement>(null);
   const productRef = useRef<HTMLIFrameElement>(null);
   const [message, setMessage] = useState("");
@@ -55,20 +67,20 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
     setSubstrateName(simpleHydrocarbonName(smiles));
     const transformation = transformations[reactionId];
     if (!transformation) {
-      setPrediction(null);
-      setMessage("Interactive prediction for this reaction is not enabled yet. This transformation needs a verified regioselectivity or stereochemistry rule before a product can be generated safely.");
       await productEditor.setMolecule("");
+      setPrediction(fallbackPrediction(expectedProduct, generalScheme));
+      setMessage("");
       return;
     }
     const result = transformation(smiles);
     if (!result || result.product === smiles) {
-      setPrediction(null);
-      setMessage(`The drawing does not contain the functional group required for the selected reaction. Read structure: ${smiles}`);
       await productEditor.setMolecule("");
+      setPrediction(fallbackPrediction(expectedProduct, generalScheme, `The exact structural drawing could not be generated safely from the read structure: ${smiles}`));
+      setMessage("");
       return;
     }
     await productEditor.setMolecule(result.product);
-    setPrediction(result);
+    setPrediction({ ...result, expectedProduct, generalScheme, exactStructure: true });
     setMessage("");
   }
 
@@ -88,7 +100,11 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
       </p>
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Editor title="Starting material" name={substrateName} ref={substrateRef} />
-        <Editor title="Expected product" name={prediction ? simpleHydrocarbonName(prediction.product) : ""} ref={productRef} />
+        <Editor
+          title="Expected product"
+          summary={prediction ? productSummary(prediction) : ""}
+          ref={productRef}
+        />
       </div>
       <div className="mt-4 flex flex-wrap gap-3">
         <button type="button" onClick={predict} className="rounded-lg bg-orange-700 px-5 py-3 font-bold text-white hover:bg-orange-800">
@@ -100,8 +116,15 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
       </div>
       {message && <p className="mt-4 rounded-lg border border-amber-300 bg-white p-3 text-sm leading-6 text-amber-950">{message}</p>}
       {prediction && (
-        <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950">
-          <p className="font-bold">Predicted product SMILES: <span className="font-mono">{prediction.product}</span></p>
+        <div className={`mt-4 rounded-lg border p-3 text-sm leading-6 ${prediction.exactStructure ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-white text-amber-950"}`}>
+          {prediction.exactStructure ? (
+            <p className="font-bold">Predicted product SMILES: <span className="font-mono">{prediction.product}</span></p>
+          ) : (
+            <>
+              <p className="font-bold">Expected product type: {prediction.expectedProduct}</p>
+              <p className="mt-1 font-mono" dir="ltr">General scheme: {prediction.generalScheme}</p>
+            </>
+          )}
           <p>{prediction.note}</p>
         </div>
       )}
@@ -109,19 +132,28 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
   );
 }
 
-const Editor = forwardRef<HTMLIFrameElement, { title: string; name: string }>(function Editor({ title, name }, ref) {
+const Editor = forwardRef<HTMLIFrameElement, { title: string; name?: string; summary?: string }>(function Editor({ title, name, summary }, ref) {
   return (
     <div>
       <h4 className="mb-2 text-sm font-bold uppercase text-amber-950">{title}</h4>
       <iframe ref={ref} src={editorUrl} className="h-[360px] w-full rounded-lg border border-amber-200 bg-white" title={title} />
       {name && <p className="mt-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-950">Name: {name}</p>}
+      {summary && <p className="mt-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-bold text-amber-950">{summary}</p>}
     </div>
   );
 });
 
 function replace(smiles: string, pattern: RegExp, replacement: string, note: string): Prediction | null {
   if (!pattern.test(smiles)) return null;
-  return { product: smiles.replace(pattern, replacement), note };
+  return { product: smiles.replace(pattern, replacement), note, expectedProduct: "", generalScheme: "", exactStructure: true };
+}
+function fallbackPrediction(expectedProduct: string, generalScheme: string, note = "The expected product is shown as a verified general scheme. An exact structural drawing is not generated yet because this reaction needs an additional regioselectivity, stereochemistry, or reagent-fragment rule.") {
+  return { product: "", expectedProduct, generalScheme, exactStructure: false, note };
+}
+function productSummary(prediction: Prediction) {
+  if (!prediction.exactStructure) return `Expected product type: ${prediction.expectedProduct}`;
+  const name = simpleHydrocarbonName(prediction.product);
+  return name ? `Name: ${name}` : `Expected product type: ${prediction.expectedProduct}`;
 }
 function normalizeKetcherSmiles(smiles: string) {
   const normalized = smiles
@@ -167,15 +199,15 @@ function linearCarbonChain(smiles: string) {
 }
 function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
-  return { product: smiles.replace(/O$/, halogen), note };
+  return { product: smiles.replace(/O$/, halogen), note, expectedProduct: "", generalScheme: "", exactStructure: true };
 }
 function carbonylToMethylene(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
-  return { product: smiles.replace(/C\(=O\)|C=O/g, "C"), note: "Reduction replaced the carbonyl group with a methylene group." };
+  return { product: smiles.replace(/C\(=O\)|C=O/g, "C"), note: "Reduction replaced the carbonyl group with a methylene group.", expectedProduct: "", generalScheme: "", exactStructure: true };
 }
 function carbonylToAlcohol(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
-  return { product: smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), note: "Reduction converted the carbonyl group into an alcohol." };
+  return { product: smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), note: "Reduction converted the carbonyl group into an alcohol.", expectedProduct: "", generalScheme: "", exactStructure: true };
 }
 function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note: string) {
   if (!/C#C/.test(smiles)) return null;
@@ -183,7 +215,7 @@ function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note:
   if (terminal) return replace(smiles, /C#C/g, "C=C", note);
   const linear = smiles.match(/^(C+)C#C(C+)$/);
   if (!linear) return null;
-  return { product: `${linear[1]}/C=C${geometry === "cis" ? "\\" : "/"}${linear[2]}`, note };
+  return { product: `${linear[1]}/C=C${geometry === "cis" ? "\\" : "/"}${linear[2]}`, note, expectedProduct: "", generalScheme: "", exactStructure: true };
 }
 function simpleHydrocarbonName(smiles: string) {
   if (!/^C(?:[#=]?C)*$/.test(smiles)) return "";

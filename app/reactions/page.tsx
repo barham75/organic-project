@@ -1073,7 +1073,11 @@ export default function ReactionsPage() {
                 <p className="mt-2 leading-7 text-slate-700">{detailFor(selected).note}</p>
               </section>
 
-              <ProductPredictor reactionId={selected.id} />
+              <ProductPredictor
+                reactionId={selected.id}
+                expectedProduct={selected.product}
+                generalScheme={selected.equation}
+              />
 
               <section className="mt-4 border-l-4 border-violet-400 bg-violet-50 p-4">
                 <h3 className="font-bold text-violet-900">Stereochemistry</h3>
