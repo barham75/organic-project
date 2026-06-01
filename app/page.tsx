@@ -120,6 +120,18 @@ export default function HomePage() {
               Classify aromatic, antiaromatic, and nonaromatic rings, then practice with graded questions.
             </p>
           </Link>
+
+          <Link
+            href="/functional-groups"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 hover:bg-emerald-100"
+          >
+            <h2 className="text-xl font-bold text-emerald-900">
+              Functional Group Test
+            </h2>
+            <p className="mt-2 text-emerald-800">
+              Identify functional groups from structural formulas or infer them from laboratory observations.
+            </p>
+          </Link>
         </div>
       </section>
     </main>
