@@ -468,6 +468,12 @@ const additionalReactions: Reaction[] = [
   { id: "benzene-side-chain-oxidation", title: "Oxidation of an Alkylbenzene Side Chain", substrate: "Alkylbenzene", product: "Benzoic acid", category: "Oxidation", startingGroup: "Aromatic compound", productGroup: "Carboxylic acid", reagents: "KMnO4, OH-, heat; then H3O+", equation: "C6H5-CH2R -> C6H5-COOH", note: "", reference: "McMurry 7e, Chapter 16" },
   { id: "amine-alkylation", title: "Alkylation of an Amine", substrate: "Amine", product: "More substituted amine", category: "Substitution", startingGroup: "Amine", productGroup: "Amine", reagents: "R-X", equation: "R-NH2 + R'-Br -> R-NH-R'", note: "", reference: "McMurry 7e, Chapter 24" },
   { id: "amine-acylation", title: "Acylation of an Amine", substrate: "Amine", product: "Amide", category: "Acyl substitution", startingGroup: "Amine", productGroup: "Amide", reagents: "RCOCl, base", equation: "R-NH2 + R'-COCl -> R'-CONH-R", note: "", reference: "McMurry 7e, Chapter 24" },
+  { id: "cyclic-bromination", title: "Anti Bromination of Cyclohexene", substrate: "Cyclohexene", product: "trans-1,2-Dibromocyclohexane", category: "Stereoselective addition", startingGroup: "Cyclic alkene", productGroup: "Cyclic product", reagents: "Br2, CH2Cl2", equation: "cyclohexene + Br2 -> trans-1,2-dibromocyclohexane", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "cyclic-dihydroxylation", title: "Syn Dihydroxylation of Cyclohexene", substrate: "Cyclohexene", product: "cis-1,2-Cyclohexanediol", category: "Stereoselective oxidation", startingGroup: "Cyclic alkene", productGroup: "Cyclic product", reagents: "1. OsO4  2. NaHSO3, H2O", equation: "cyclohexene -> cis-1,2-cyclohexanediol", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "cyclic-hydroboration", title: "Regioselective Hydroboration of 1-Methylcyclohexene", substrate: "1-Methylcyclohexene", product: "2-Methylcyclohexanol", category: "Regioselective syn addition", startingGroup: "Cyclic alkene", productGroup: "Cyclic product", reagents: "1. BH3, THF  2. H2O2, OH-", equation: "1-methylcyclohexene -> 2-methylcyclohexanol", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "cyclic-oxymercuration", title: "Regioselective Oxymercuration of 1-Methylcyclohexene", substrate: "1-Methylcyclohexene", product: "1-Methylcyclohexanol", category: "Regioselective addition", startingGroup: "Cyclic alkene", productGroup: "Cyclic product", reagents: "1. Hg(OAc)2, H2O  2. NaBH4", equation: "1-methylcyclohexene -> 1-methylcyclohexanol", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "cyclic-hydrogenation", title: "Syn Hydrogenation of 1,2-Dimethylcyclohexene", substrate: "1,2-Dimethylcyclohexene", product: "cis-1,2-Dimethylcyclohexane", category: "Stereoselective reduction", startingGroup: "Cyclic alkene", productGroup: "Cyclic product", reagents: "H2, Pd/C", equation: "1,2-dimethylcyclohexene + H2 -> cis-1,2-dimethylcyclohexane", note: "", reference: "McMurry 7e, Chapter 8" },
+  { id: "cyclic-e2", title: "Trans-Diaxial E2 Elimination in a Cyclohexane", substrate: "trans-1-Bromo-2-methylcyclohexane", product: "1-Methylcyclohexene", category: "Stereospecific elimination", startingGroup: "Cyclic alkyl halide", productGroup: "Cyclic alkene", reagents: "EtO-, EtOH, heat", equation: "trans-1-bromo-2-methylcyclohexane -> 1-methylcyclohexene", note: "", reference: "McMurry 7e, Chapter 11" },
 ];
 
 reactions.push(...additionalReactions);
@@ -500,7 +506,43 @@ function Bond({ type }: { type: string }) {
   return <span className="block h-0.5 w-5 bg-slate-800" />;
 }
 
+function RingMolecule({ value }: { value: string }) {
+  const lower = value.toLowerCase();
+  const hasDoubleBond = lower.includes("ene");
+  const hasMethyl = lower.includes("methyl");
+  const hasBromine = lower.includes("bromo");
+  const hasDiBromine = lower.includes("dibromo");
+  const hasHydroxyl = lower.includes("ol");
+  const hasDiol = lower.includes("diol");
+  const isTrans = lower.includes("trans");
+  const secondLabel = hasDiBromine ? "Br" : hasDiol ? "OH" : hasMethyl ? "CH3" : "";
+  const firstLabel = hasBromine ? "Br" : hasHydroxyl ? "OH" : hasMethyl ? "CH3" : "";
+
+  return (
+    <span className="inline-grid min-w-40 justify-items-center">
+      <svg viewBox="0 0 180 125" className="h-28 w-40" role="img" aria-label={value}>
+        <polygon points="90,12 145,43 145,88 90,118 35,88 35,43" fill="none" stroke="#1e293b" strokeWidth="4" />
+        {hasDoubleBond && <line x1="132" y1="49" x2="132" y2="81" stroke="#0f766e" strokeWidth="3" />}
+        {firstLabel && (
+          <>
+            <line x1="90" y1="12" x2="90" y2="0" stroke="#1e293b" strokeWidth="5" />
+            <text x="90" y="10" textAnchor="middle" fill="#0f172a" fontSize="15" fontWeight="700">{firstLabel}</text>
+          </>
+        )}
+        {secondLabel && (
+          <>
+            <line x1="145" y1="43" x2="169" y2="30" stroke="#1e293b" strokeWidth={isTrans ? "2" : "6"} strokeDasharray={isTrans ? "4 4" : undefined} />
+            <text x="169" y="24" textAnchor="middle" fill="#0f172a" fontSize="15" fontWeight="700">{secondLabel}</text>
+          </>
+        )}
+      </svg>
+      <span className="max-w-44 text-center font-serif text-sm font-semibold text-slate-700">{value}</span>
+    </span>
+  );
+}
+
 function Molecule({ value }: { value: string }) {
+  if (value.toLowerCase().includes("cyclohex")) return <RingMolecule value={value} />;
   const parts = value.trim().split(/(-|=|#)/).filter(Boolean);
   return (
     <span className="inline-flex min-h-12 items-center">
@@ -737,8 +779,47 @@ const reactionDetails: Record<string, ReactionDetail> = {
   },
 };
 
+const cyclicReactionDetails: Record<string, ReactionDetail> = {
+  "cyclic-bromination": {
+    note: "The bromonium ion blocks attack from the same face. Bromide must open the bridge from the opposite face.",
+    example: "cyclohexene + Br2 -> trans-1,2-dibromocyclohexane",
+    exampleReagents: "Br2, CH2Cl2",
+    stereo: "Stereoselective anti addition. The major cyclic product is trans-1,2-dibromocyclohexane. Regioselectivity is not an issue because the alkene carbons are equivalent.",
+  },
+  "cyclic-dihydroxylation": {
+    note: "Osmium tetroxide delivers two oxygen atoms to the same face of the double bond.",
+    example: "cyclohexene -> cis-1,2-cyclohexanediol",
+    exampleReagents: "1. OsO4  2. NaHSO3, H2O",
+    stereo: "Stereoselective syn addition. The two OH groups appear on the same face, so the cyclic product is cis.",
+  },
+  "cyclic-hydroboration": {
+    note: "Boron approaches the less substituted alkene carbon. Oxidation replaces C-B with C-OH without changing that position.",
+    example: "1-methylcyclohexene -> 2-methylcyclohexanol",
+    exampleReagents: "1. BH3, THF  2. H2O2, OH-",
+    stereo: "Regioselective anti-Markovnikov hydration and stereoselective syn addition. H and OH are installed on the same face.",
+  },
+  "cyclic-oxymercuration": {
+    note: "Water attacks the more substituted carbon of the bridged mercurinium ion, giving Markovnikov hydration without rearrangement.",
+    example: "1-methylcyclohexene -> 1-methylcyclohexanol",
+    exampleReagents: "1. Hg(OAc)2, H2O  2. NaBH4",
+    stereo: "Regioselective Markovnikov hydration. The overall demercuration sequence is not used to predict a single stereochemical product.",
+  },
+  "cyclic-hydrogenation": {
+    note: "Both hydrogen atoms are transferred from the catalyst surface to the same face of the cyclic alkene.",
+    example: "1,2-dimethylcyclohexene + H2 -> cis-1,2-dimethylcyclohexane",
+    exampleReagents: "H2, Pd/C",
+    stereo: "Stereoselective syn reduction. The substituent relationship in the cyclic product is cis.",
+  },
+  "cyclic-e2": {
+    note: "A cyclohexane E2 reaction requires the leaving group and beta-H to be anti-periplanar, which corresponds to a trans-diaxial geometry in a chair conformation.",
+    example: "trans-1-bromo-2-methylcyclohexane -> 1-methylcyclohexene",
+    exampleReagents: "EtO-, EtOH, heat",
+    stereo: "Stereospecific trans-diaxial elimination. Only a chair conformer with axial Br and an axial anti beta-H can react.",
+  },
+};
+
 function detailFor(reaction: Reaction): ReactionDetail {
-  return reactionDetails[reaction.id] ?? {
+  return reactionDetails[reaction.id] ?? cyclicReactionDetails[reaction.id] ?? {
     note: `${reaction.title} is a standard ${reaction.category.toLowerCase()} transformation. Compare the functional group in the starting material with the functional group in the product and check the reagent set carefully.`,
     example: reaction.equation,
     exampleReagents: reaction.reagents,
