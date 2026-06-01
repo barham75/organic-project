@@ -108,6 +108,18 @@ export default function HomePage() {
               Compare boiling-point trends, solubility, acidity, basicity, and the factors behind them.
             </p>
           </Link>
+
+          <Link
+            href="/aromaticity"
+            className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 hover:bg-indigo-100"
+          >
+            <h2 className="text-xl font-bold text-indigo-900">
+              Aromaticity and Huckel&apos;s Rule
+            </h2>
+            <p className="mt-2 text-indigo-800">
+              Classify aromatic, antiaromatic, and nonaromatic rings, then practice with graded questions.
+            </p>
+          </Link>
         </div>
       </section>
     </main>
