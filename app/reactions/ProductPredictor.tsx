@@ -47,7 +47,7 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
       setMessage("The chemical editor is still loading. Try again in a moment.");
       return;
     }
-    const smiles = (await substrateEditor.getSmiles()).trim();
+    const smiles = normalizeKetcherSmiles((await substrateEditor.getSmiles()).trim());
     if (!smiles) {
       setMessage("Draw a starting material before predicting the product.");
       return;
@@ -122,6 +122,11 @@ const Editor = forwardRef<HTMLIFrameElement, { title: string; name: string }>(fu
 function replace(smiles: string, pattern: RegExp, replacement: string, note: string): Prediction | null {
   if (!pattern.test(smiles)) return null;
   return { product: smiles.replace(pattern, replacement), note };
+}
+function normalizeKetcherSmiles(smiles: string) {
+  return smiles
+    .replace(/\[H\]/g, "")
+    .replace(/\[(?:\d+)?(C|N|O|F|Cl|Br|I)H?\d*[^\]]*\]/g, "$1");
 }
 function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
