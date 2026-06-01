@@ -96,6 +96,18 @@ export default function HomePage() {
               Browse organic reactions by starting functional group or expected product.
             </p>
           </Link>
+
+          <Link
+            href="/physical-properties"
+            className="rounded-2xl border border-teal-200 bg-teal-50 p-6 hover:bg-teal-100"
+          >
+            <h2 className="text-xl font-bold text-teal-900">
+              Physical Properties and Acidity
+            </h2>
+            <p className="mt-2 text-teal-800">
+              Compare boiling-point trends, solubility, acidity, basicity, and the factors behind them.
+            </p>
+          </Link>
         </div>
       </section>
     </main>
