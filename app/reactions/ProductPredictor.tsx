@@ -63,7 +63,7 @@ export default function ProductPredictor({ reactionId }: { reactionId: string })
     const result = transformation(smiles);
     if (!result || result.product === smiles) {
       setPrediction(null);
-      setMessage("The drawing does not contain the functional group required for the selected reaction.");
+      setMessage(`The drawing does not contain the functional group required for the selected reaction. Read structure: ${smiles}`);
       await productEditor.setMolecule("");
       return;
     }
@@ -124,9 +124,46 @@ function replace(smiles: string, pattern: RegExp, replacement: string, note: str
   return { product: smiles.replace(pattern, replacement), note };
 }
 function normalizeKetcherSmiles(smiles: string) {
-  return smiles
+  const normalized = smiles
+    .split(/\s+\|/)[0]
     .replace(/\[H\]/g, "")
-    .replace(/\[(?:\d+)?(C|N|O|F|Cl|Br|I)H?\d*[^\]]*\]/g, "$1");
+    .replace(/\[(?:\d+)?(C|N|O|F|Cl|Br|I)H?\d*[^\]]*\]/g, "$1")
+    .replace(/-/g, "");
+  return linearCarbonChain(normalized) ?? normalized;
+}
+function linearCarbonChain(smiles: string) {
+  if (!/^[C()#=\\/]+$/.test(smiles)) return null;
+  const atoms: { bonds: { atom: number; symbol: string }[] }[] = [];
+  const branches: number[] = [];
+  let current = -1;
+  let symbol = "";
+  for (const token of smiles) {
+    if (token === "(") { branches.push(current); continue; }
+    if (token === ")") { current = branches.pop() ?? current; continue; }
+    if (token === "#" || token === "=" || token === "/" || token === "\\") { symbol = token; continue; }
+    if (token !== "C") return null;
+    const next = atoms.push({ bonds: [] }) - 1;
+    if (current >= 0) {
+      atoms[current].bonds.push({ atom: next, symbol });
+      atoms[next].bonds.push({ atom: current, symbol });
+    }
+    current = next;
+    symbol = "";
+  }
+  if (!atoms.length || atoms.some((atom) => atom.bonds.length > 2)) return null;
+  const terminal = atoms.findIndex((atom) => atom.bonds.length <= 1);
+  if (terminal < 0) return null;
+  let result = "C";
+  let previous = -1;
+  current = terminal;
+  while (true) {
+    const bond = atoms[current].bonds.find((item) => item.atom !== previous);
+    if (!bond) break;
+    result += `${bond.symbol}C`;
+    previous = current;
+    current = bond.atom;
+  }
+  return result;
 }
 function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
