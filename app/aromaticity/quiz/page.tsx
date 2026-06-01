@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { aromaticityQuestions } from "../data";
+import { AromaticStructure } from "../structure";
 
 export default function AromaticityQuizPage() {
   const [index, setIndex] = useState(0);
@@ -41,7 +42,9 @@ export default function AromaticityQuizPage() {
 
           <div className="mt-6 rounded-md border border-indigo-200 bg-indigo-50 p-5">
             <p className="text-sm font-bold uppercase text-indigo-700">Structure</p>
-            <p className="mt-2 font-mono text-lg font-bold text-indigo-950">{question.structure}</p>
+            <div className="mt-2 rounded-md bg-white p-3">
+              <AromaticStructure id={question.structureId} />
+            </div>
           </div>
 
           <div className="mt-6 grid gap-3">

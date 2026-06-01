@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { aromaticityExamples } from "./data";
+import { AromaticStructure } from "./structure";
 
 export default function AromaticityPage() {
   return (
@@ -39,6 +40,9 @@ export default function AromaticityPage() {
                     <p className="mt-1 font-mono text-sm text-slate-600">{example.formula}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-bold ${badge(example.classification)}`}>{example.classification}</span>
+                </div>
+                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-2">
+                  <AromaticStructure id={example.structureId} compact />
                 </div>
                 <p className="mt-3 text-sm font-semibold text-indigo-800">{example.piElectrons}</p>
                 <p className="mt-2 leading-6 text-slate-700">{example.explanation}</p>
