@@ -38,11 +38,24 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "carbonyl-wolff-kishner": carbonylToMethylene,
   "aldehyde-oxidation": (smiles) => replace(smiles, /C=O$/g, "C(=O)O", "Oxidation converted the aldehyde group into a carboxylic acid."),
   "acid-reduction": (smiles) => replace(smiles, /C\(=O\)O/g, "CO", "Reduction converted the carboxylic acid group into a primary alcohol."),
+  "acid-deprotonation": carboxylicAcidToCarboxylate,
+  "acid-bicarbonate": carboxylicAcidToCarboxylate,
+  "acid-diazomethane": (smiles) => replace(smiles, /C\(=O\)O/g, "C(=O)OC", "Diazomethane converted the carboxylic acid into its methyl ester."),
   "acid-socl2": (smiles) => replace(smiles, /C\(=O\)O/g, "C(=O)Cl", "SOCl2 converted the carboxylic acid into an acid chloride."),
   "acid-chloride-hydrolysis": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)O", "Hydrolysis converted the acid chloride into a carboxylic acid."),
+  "acid-chloride-amide": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)N", "Reaction with ammonia converted the acid chloride into a primary amide."),
+  "acid-chloride-reduction": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C=O", "Rosenmund reduction converted the acid chloride into an aldehyde."),
   "nitrile-hydrolysis": (smiles) => replace(smiles, /C#N/g, "C(=O)O", "Hydrolysis converted the nitrile into a carboxylic acid."),
+  "nitrile-basic-hydrolysis": (smiles) => replace(smiles, /C#N/g, "C(=O)O", "Basic hydrolysis followed by acidic workup converted the nitrile into a carboxylic acid."),
   "nitrile-reduction": (smiles) => replace(smiles, /C#N/g, "CN", "Reduction converted the nitrile into a primary amine."),
+  "nitrile-dibal": (smiles) => replace(smiles, /C#N/g, "C=O", "Partial DIBAL-H reduction followed by hydrolysis converted the nitrile into an aldehyde."),
+  "amide-reduction": (smiles) => replace(smiles, /C\(=O\)N/g, "CN", "LiAlH4 reduction converted the amide carbonyl group into a methylene group while retaining nitrogen."),
+  "amide-hydrolysis": (smiles) => replace(smiles, /C\(=O\)N/g, "C(=O)O", "Acidic hydrolysis converted the amide into a carboxylic acid."),
+  "amide-basic-hydrolysis": (smiles) => replace(smiles, /C\(=O\)N/g, "C(=O)[O-]", "Basic hydrolysis converted the amide into a carboxylate salt. The counterion is omitted from the structural drawing."),
   "amide-dehydration": (smiles) => replace(smiles, /C\(=O\)N/g, "C#N", "Dehydration converted the primary amide into a nitrile."),
+  "amide-hofmann": (smiles) => replace(smiles, /C\(=O\)N/g, "N", "Hofmann rearrangement converted the primary amide into an amine with one fewer carbon atom."),
+  "cyclic-bromination": cyclohexeneAntiBromination,
+  "cyclic-dihydroxylation": cyclohexeneSynDihydroxylation,
 };
 
 type ProductPredictorProps = {
@@ -217,6 +230,9 @@ function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/O$/, halogen), note);
 }
+function carboxylicAcidToCarboxylate(smiles: string) {
+  return replace(smiles, /C\(=O\)O/g, "C(=O)[O-]", "Deprotonation converted the carboxylic acid into a carboxylate salt. The counterion is omitted from the structural drawing.");
+}
 function terminalAlkeneAddition(smiles: string, position: "terminal" | "internal", group: string, note: string) {
   if (/^C=C/.test(smiles)) {
     return exactPrediction(smiles.replace(/^C=C/, position === "terminal" ? `${group}CC` : `CC(${group})`), note);
@@ -253,6 +269,14 @@ function carbonylCondensation(smiles: string, branchedProduct: string, terminalP
   if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, branchedProduct), note);
   if (/C=O/.test(smiles)) return exactPrediction(smiles.replace(/C=O/, terminalProduct), note);
   return null;
+}
+function cyclohexeneAntiBromination(smiles: string) {
+  if (smiles !== "C1=CCCCC1") return null;
+  return exactPrediction("Br[C@H]1[C@@H](Br)CCCC1", "Anti bromination of cyclohexene produced trans-1,2-dibromocyclohexane. The product drawing includes opposite stereochemical bonds.");
+}
+function cyclohexeneSynDihydroxylation(smiles: string) {
+  if (smiles !== "C1=CCCCC1") return null;
+  return exactPrediction("O[C@H]1[C@H](O)CCCC1", "Syn dihydroxylation of cyclohexene produced cis-1,2-cyclohexanediol. The product drawing includes stereochemical bonds on the same face.");
 }
 function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note: string) {
   if (!/C#C/.test(smiles)) return null;
