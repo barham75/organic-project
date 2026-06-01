@@ -10,8 +10,8 @@ const editorUrl = "/standalone/index.html";
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-hydrogenation": (smiles) => replace(smiles, /C=C/g, "CC", "Catalytic hydrogenation removed the alkene pi bond."),
   "alkyne-hydrogenation": (smiles) => replace(smiles, /C#C/g, "CC", "Complete hydrogenation removed the alkyne pi bonds."),
-  "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
-  "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
+  "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "cis", "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
+  "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "trans", "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
   "alcohol-pbr3": (smiles) => terminalAlcohol(smiles, "Br", "PBr3 replaced the alcohol group with bromine."),
   "alcohol-socl2": (smiles) => terminalAlcohol(smiles, "Cl", "SOCl2 replaced the alcohol group with chlorine."),
   "carbonyl-reduction": carbonylToAlcohol,
@@ -140,9 +140,13 @@ function carbonylToAlcohol(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
   return { product: smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), note: "Reduction converted the carbonyl group into an alcohol." };
 }
-function partialAlkyneReduction(smiles: string, note: string) {
-  if (!/^C#C|C#C$/.test(smiles)) return null;
-  return replace(smiles, /C#C/g, "C=C", note);
+function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note: string) {
+  if (!/C#C/.test(smiles)) return null;
+  const terminal = /^C#C|C#C$/.test(smiles);
+  if (terminal) return replace(smiles, /C#C/g, "C=C", note);
+  const linear = smiles.match(/^(C+)C#C(C+)$/);
+  if (!linear) return null;
+  return { product: `${linear[1]}/C=C${geometry === "cis" ? "\\" : "/"}${linear[2]}`, note };
 }
 function simpleHydrocarbonName(smiles: string) {
   if (!/^C(?:[#=]?C)*$/.test(smiles)) return "";
