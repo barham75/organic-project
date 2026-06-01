@@ -27,8 +27,24 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkyne-hydrogenation": (smiles) => replace(smiles, /C#C/g, "CC", "Complete hydrogenation removed the alkyne pi bonds."),
   "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "cis", "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
   "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "trans", "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
+  "alkyne-hydration": terminalAlkyneHydration,
+  "alkyne-hydroboration": terminalAlkyneHydroboration,
+  "alkyne-hx": (smiles) => terminalAlkyneHydrohalogenation(smiles, false),
+  "alkyne-halogenation": (smiles) => replace(smiles, /C#C/, "C(Br)=C(Br)", "One equivalent of bromine converted the alkyne into a dibromoalkene."),
+  "alkyne-hx-two-equivalents": (smiles) => terminalAlkyneHydrohalogenation(smiles, true),
+  "alkyne-halogenation-two-equivalents": (smiles) => replace(smiles, /C#C/, "C(Br)(Br)C(Br)(Br)", "Two equivalents of bromine converted the alkyne into a tetrabromoalkane."),
+  "alkyne-oxidative-cleavage": internalAlkyneOxidativeCleavage,
+  "halide-nitrile-formation": (smiles) => terminalHalideReplacement(smiles, "C#N", "Cyanide displaced the terminal halide by an SN2 reaction and added one carbon atom to the chain."),
+  "amine-gabriel-synthesis": (smiles) => terminalHalideReplacement(smiles, "N", "Gabriel synthesis converted the terminal primary alkyl halide into a primary amine."),
   "alcohol-pbr3": (smiles) => terminalAlcohol(smiles, "Br", "PBr3 replaced the alcohol group with bromine."),
   "alcohol-socl2": (smiles) => terminalAlcohol(smiles, "Cl", "SOCl2 replaced the alcohol group with chlorine."),
+  "alcohol-alkoxide-formation": (smiles) => terminalAlcohol(smiles, "[O-]", "Deprotonation converted the alcohol into an alkoxide. The counterion is omitted from the structural drawing."),
+  "alcohol-deoxygenation": (smiles) => terminalAlcohol(smiles, "", "Deoxygenation replaced the terminal alcohol group with hydrogen."),
+  "amine-nitrous-acid": (smiles) => replace(smiles, /N$/g, "O", "Nitrous acid converted the terminal primary aliphatic amine into an alcohol with loss of nitrogen gas."),
+  "benzene-bromination": (smiles) => benzeneSubstitution(smiles, "Br", "Electrophilic aromatic substitution converted benzene into bromobenzene."),
+  "benzene-chlorination": (smiles) => benzeneSubstitution(smiles, "Cl", "Electrophilic aromatic substitution converted benzene into chlorobenzene."),
+  "benzene-nitration": (smiles) => benzeneSubstitution(smiles, "[N+](=O)[O-]", "Electrophilic aromatic substitution converted benzene into nitrobenzene."),
+  "benzene-sulfonation": (smiles) => benzeneSubstitution(smiles, "S(=O)(=O)(O)", "Electrophilic aromatic substitution converted benzene into benzenesulfonic acid."),
   "carbonyl-reduction": carbonylToAlcohol,
   "carbonyl-cyanohydrin": (smiles) => carbonylAddition(smiles, "C(O)(C#N)", "C(O)C#N", "Cyanide addition followed by protonation converted the carbonyl group into a cyanohydrin."),
   "carbonyl-hydrate": (smiles) => carbonylAddition(smiles, "C(O)(O)", "C(O)O", "Hydration converted the carbonyl group into a geminal diol."),
@@ -230,6 +246,10 @@ function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/O$/, halogen), note);
 }
+function terminalHalideReplacement(smiles: string, group: string, note: string) {
+  if (!/(?:Cl|Br|I)$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/(?:Cl|Br|I)$/, group), note);
+}
 function carboxylicAcidToCarboxylate(smiles: string) {
   return replace(smiles, /C\(=O\)O/g, "C(=O)[O-]", "Deprotonation converted the carboxylic acid into a carboxylate salt. The counterion is omitted from the structural drawing.");
 }
@@ -251,6 +271,36 @@ function terminalAlkeneHalohydrin(smiles: string) {
 function alkeneOzonolysis(smiles: string) {
   if (!/C=C/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/C=C/, "C=O.O=C"), "Reductive ozonolysis cleaved the alkene and produced the corresponding aldehyde or ketone fragments.");
+}
+function terminalAlkyneHydration(smiles: string) {
+  const note = "Mercury-catalyzed hydration of the terminal alkyne produced a methyl ketone after enol-keto tautomerization.";
+  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, "CC(=O)"), note);
+  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, "C(=O)C"), note);
+  return null;
+}
+function terminalAlkyneHydroboration(smiles: string) {
+  const note = "Hydroboration-oxidation of the terminal alkyne produced an aldehyde after tautomerization.";
+  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, "O=CC"), note);
+  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, "CC=O"), note);
+  return null;
+}
+function terminalAlkyneHydrohalogenation(smiles: string, twoEquivalents: boolean) {
+  const note = twoEquivalents
+    ? "Two equivalents of HBr added to the terminal alkyne and produced a geminal dibromide."
+    : "One equivalent of HBr added to the terminal alkyne and produced a Markovnikov vinyl bromide.";
+  const replacement = twoEquivalents ? "C(Br)(Br)C" : "C(Br)=C";
+  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, twoEquivalents ? "CC(Br)(Br)" : "C=C(Br)"), note);
+  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, replacement), note);
+  return null;
+}
+function internalAlkyneOxidativeCleavage(smiles: string) {
+  if (!/C#C/.test(smiles) || /^C#C|C#C$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C#C/, "C(=O)O.OC(=O)"), "Oxidative cleavage split the internal alkyne into two carboxylic acids.");
+}
+function benzeneSubstitution(smiles: string, group: string, note: string) {
+  if (smiles === "c1ccccc1") return exactPrediction(`${group}c1ccccc1`, note);
+  if (smiles === "C1=CC=CC=C1") return exactPrediction(`${group}C1=CC=CC=C1`, note);
+  return null;
 }
 function carbonylToMethylene(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
