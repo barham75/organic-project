@@ -41,10 +41,25 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alcohol-alkoxide-formation": (smiles) => terminalAlcohol(smiles, "[O-]", "Deprotonation converted the alcohol into an alkoxide. The counterion is omitted from the structural drawing."),
   "alcohol-deoxygenation": (smiles) => terminalAlcohol(smiles, "", "Deoxygenation replaced the terminal alcohol group with hydrogen."),
   "amine-nitrous-acid": (smiles) => replace(smiles, /N$/g, "O", "Nitrous acid converted the terminal primary aliphatic amine into an alcohol with loss of nitrogen gas."),
+  "epoxide-opening-basic": ethyleneOxideHydrolysis,
+  "epoxide-opening-acid": ethyleneOxideHydrolysis,
+  "epoxide-opening-hydride": ethyleneOxideHydrideOpening,
+  "halohydrin-epoxide-formation": bromoethanolToEthyleneOxide,
+  "ester-hydrolysis": esterToCarboxylate,
+  "ester-acidic-hydrolysis": esterToCarboxylicAcid,
+  "ester-reduction": esterToPrimaryAlcohol,
+  "ester-dibal": esterToAldehyde,
   "benzene-bromination": (smiles) => benzeneSubstitution(smiles, "Br", "Electrophilic aromatic substitution converted benzene into bromobenzene."),
   "benzene-chlorination": (smiles) => benzeneSubstitution(smiles, "Cl", "Electrophilic aromatic substitution converted benzene into chlorobenzene."),
   "benzene-nitration": (smiles) => benzeneSubstitution(smiles, "[N+](=O)[O-]", "Electrophilic aromatic substitution converted benzene into nitrobenzene."),
   "benzene-sulfonation": (smiles) => benzeneSubstitution(smiles, "S(=O)(=O)(O)", "Electrophilic aromatic substitution converted benzene into benzenesulfonic acid."),
+  "benzene-nitro-reduction": nitrobenzeneToAniline,
+  "benzene-diazonium": anilineToDiazonium,
+  "benzene-sandmeyer": (smiles) => diazoniumReplacement(smiles, "Cl", "Sandmeyer substitution replaced the diazonium group with chlorine and released nitrogen gas."),
+  "benzene-diazonium-phenol": (smiles) => diazoniumReplacement(smiles, "O", "Hydrolysis replaced the diazonium group with a hydroxyl group and released nitrogen gas."),
+  "benzene-diazonium-iodide": (smiles) => diazoniumReplacement(smiles, "I", "Iodide replaced the diazonium group and released nitrogen gas."),
+  "benzene-diazonium-reduction": (smiles) => diazoniumReplacement(smiles, "", "Reduction replaced the diazonium group with hydrogen and released nitrogen gas."),
+  "benzene-birch-reduction": benzeneBirchReduction,
   "carbonyl-reduction": carbonylToAlcohol,
   "carbonyl-cyanohydrin": (smiles) => carbonylAddition(smiles, "C(O)(C#N)", "C(O)C#N", "Cyanide addition followed by protonation converted the carbonyl group into a cyanohydrin."),
   "carbonyl-hydrate": (smiles) => carbonylAddition(smiles, "C(O)(O)", "C(O)O", "Hydration converted the carbonyl group into a geminal diol."),
@@ -250,6 +265,37 @@ function terminalHalideReplacement(smiles: string, group: string, note: string) 
   if (!/(?:Cl|Br|I)$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/(?:Cl|Br|I)$/, group), note);
 }
+function ethyleneOxideHydrolysis(smiles: string) {
+  if (!isEthyleneOxide(smiles)) return null;
+  return exactPrediction("OCCO", "Ring opening of ethylene oxide with water produced ethylene glycol.");
+}
+function ethyleneOxideHydrideOpening(smiles: string) {
+  if (!isEthyleneOxide(smiles)) return null;
+  return exactPrediction("CCO", "Hydride opened ethylene oxide and produced ethanol after acidic workup.");
+}
+function bromoethanolToEthyleneOxide(smiles: string) {
+  if (smiles !== "OCCBr" && smiles !== "BrCCO") return null;
+  return exactPrediction("C1CO1", "Intramolecular substitution converted 2-bromoethanol into ethylene oxide.");
+}
+function isEthyleneOxide(smiles: string) {
+  return smiles === "C1CO1" || smiles === "O1CC1";
+}
+function esterToCarboxylate(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C(=O)[O-]"), "Base-promoted hydrolysis converted the ester into a carboxylate salt. The alcohol coproduct and counterion are omitted from the structural drawing.");
+}
+function esterToCarboxylicAcid(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C(=O)O"), "Acid-catalyzed hydrolysis converted the ester into a carboxylic acid. The alcohol coproduct is omitted from the structural drawing.");
+}
+function esterToPrimaryAlcohol(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "CO"), "LiAlH4 reduction converted the ester acyl fragment into a primary alcohol. The alcohol formed from the alkoxy fragment is omitted from the structural drawing.");
+}
+function esterToAldehyde(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C=O"), "DIBAL-H partial reduction converted the ester into an aldehyde.");
+}
 function carboxylicAcidToCarboxylate(smiles: string) {
   return replace(smiles, /C\(=O\)O/g, "C(=O)[O-]", "Deprotonation converted the carboxylic acid into a carboxylate salt. The counterion is omitted from the structural drawing.");
 }
@@ -301,6 +347,22 @@ function benzeneSubstitution(smiles: string, group: string, note: string) {
   if (smiles === "c1ccccc1") return exactPrediction(`${group}c1ccccc1`, note);
   if (smiles === "C1=CC=CC=C1") return exactPrediction(`${group}C1=CC=CC=C1`, note);
   return null;
+}
+function nitrobenzeneToAniline(smiles: string) {
+  if (smiles === "[N+](=O)[O-]c1ccccc1") return exactPrediction("Nc1ccccc1", "Reduction converted nitrobenzene into aniline.");
+  return null;
+}
+function anilineToDiazonium(smiles: string) {
+  if (smiles !== "Nc1ccccc1") return null;
+  return exactPrediction("[N+]#Nc1ccccc1", "Diazotization converted aniline into an arenediazonium ion. The counterion is omitted from the structural drawing.");
+}
+function diazoniumReplacement(smiles: string, group: string, note: string) {
+  if (smiles !== "[N+]#Nc1ccccc1" && smiles !== "N#[N+]c1ccccc1") return null;
+  return exactPrediction(`${group}c1ccccc1`, note);
+}
+function benzeneBirchReduction(smiles: string) {
+  if (smiles !== "c1ccccc1" && smiles !== "C1=CC=CC=C1") return null;
+  return exactPrediction("C1=CCC=CC1", "Birch reduction converted benzene into 1,4-cyclohexadiene.");
 }
 function carbonylToMethylene(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
