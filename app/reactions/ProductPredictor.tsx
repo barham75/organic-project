@@ -14,13 +14,26 @@ type EditorWindow = Window & typeof globalThis & { ketcher?: ChemicalEditor };
 const editorUrl = "/standalone/index.html";
 
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
+  "alkene-hbr-peroxide": (smiles) => terminalAlkeneAddition(smiles, "terminal", "Br", "Radical addition of HBr placed bromine at the less substituted end of the terminal alkene."),
+  "alkene-hydration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Acid-catalyzed hydration placed the alcohol group at the more substituted carbon of the terminal alkene."),
+  "alkene-oxymercuration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Oxymercuration-demercuration produced the Markovnikov alcohol without a carbocation rearrangement."),
+  "alkene-hydroboration": (smiles) => terminalAlkeneAddition(smiles, "terminal", "O", "Hydroboration-oxidation produced the anti-Markovnikov alcohol. The addition is syn when stereochemistry applies."),
+  "alkene-halohydrin": terminalAlkeneHalohydrin,
   "alkene-hydrogenation": (smiles) => replace(smiles, /C=C/g, "CC", "Catalytic hydrogenation removed the alkene pi bond."),
+  "alkene-ozonolysis": alkeneOzonolysis,
+  "alkene-epoxidation": (smiles) => replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship."),
+  "alkene-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Syn dihydroxylation added two alcohol groups across the alkene. The drawing shows connectivity; the reaction stereochemistry is syn."),
+  "alkene-anti-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Epoxidation followed by hydrolysis added two alcohol groups across the alkene. The drawing shows connectivity; the overall addition is anti."),
   "alkyne-hydrogenation": (smiles) => replace(smiles, /C#C/g, "CC", "Complete hydrogenation removed the alkyne pi bonds."),
   "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "cis", "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
   "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "trans", "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
   "alcohol-pbr3": (smiles) => terminalAlcohol(smiles, "Br", "PBr3 replaced the alcohol group with bromine."),
   "alcohol-socl2": (smiles) => terminalAlcohol(smiles, "Cl", "SOCl2 replaced the alcohol group with chlorine."),
   "carbonyl-reduction": carbonylToAlcohol,
+  "carbonyl-cyanohydrin": (smiles) => carbonylAddition(smiles, "C(O)(C#N)", "C(O)C#N", "Cyanide addition followed by protonation converted the carbonyl group into a cyanohydrin."),
+  "carbonyl-hydrate": (smiles) => carbonylAddition(smiles, "C(O)(O)", "C(O)O", "Hydration converted the carbonyl group into a geminal diol."),
+  "carbonyl-oxime": (smiles) => carbonylCondensation(smiles, "C(=NO)", "C=NO", "Reaction with hydroxylamine converted the carbonyl group into an oxime."),
+  "carbonyl-hydrazone": (smiles) => carbonylCondensation(smiles, "C(=NN)", "C=NN", "Reaction with hydrazine converted the carbonyl group into a hydrazone."),
   "carbonyl-clemmensen": carbonylToMethylene,
   "carbonyl-wolff-kishner": carbonylToMethylene,
   "aldehyde-oxidation": (smiles) => replace(smiles, /C=O$/g, "C(=O)O", "Oxidation converted the aldehyde group into a carboxylic acid."),
@@ -145,7 +158,10 @@ const Editor = forwardRef<HTMLIFrameElement, { title: string; name?: string; sum
 
 function replace(smiles: string, pattern: RegExp, replacement: string, note: string): Prediction | null {
   if (!pattern.test(smiles)) return null;
-  return { product: smiles.replace(pattern, replacement), note, expectedProduct: "", generalScheme: "", exactStructure: true };
+  return exactPrediction(smiles.replace(pattern, replacement), note);
+}
+function exactPrediction(product: string, note: string): Prediction {
+  return { product, note, expectedProduct: "", generalScheme: "", exactStructure: true };
 }
 function fallbackPrediction(expectedProduct: string, generalScheme: string, note = "The expected product is shown as a verified general scheme. An exact structural drawing is not generated yet because this reaction needs an additional regioselectivity, stereochemistry, or reagent-fragment rule.") {
   return { product: "", expectedProduct, generalScheme, exactStructure: false, note };
@@ -199,15 +215,44 @@ function linearCarbonChain(smiles: string) {
 }
 function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
-  return { product: smiles.replace(/O$/, halogen), note, expectedProduct: "", generalScheme: "", exactStructure: true };
+  return exactPrediction(smiles.replace(/O$/, halogen), note);
+}
+function terminalAlkeneAddition(smiles: string, position: "terminal" | "internal", group: string, note: string) {
+  if (/^C=C/.test(smiles)) {
+    return exactPrediction(smiles.replace(/^C=C/, position === "terminal" ? `${group}CC` : `CC(${group})`), note);
+  }
+  if (/C=C$/.test(smiles)) {
+    return exactPrediction(smiles.replace(/C=C$/, position === "terminal" ? `CC${group}` : `C(${group})C`), note);
+  }
+  return null;
+}
+function terminalAlkeneHalohydrin(smiles: string) {
+  const note = "Halohydrin formation placed the alcohol group at the more substituted carbon and bromine at the less substituted carbon. The addition is anti.";
+  if (/^C=C/.test(smiles)) return exactPrediction(smiles.replace(/^C=C/, "BrCC(O)"), note);
+  if (/C=C$/.test(smiles)) return exactPrediction(smiles.replace(/C=C$/, "C(O)CBr"), note);
+  return null;
+}
+function alkeneOzonolysis(smiles: string) {
+  if (!/C=C/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C=C/, "C=O.O=C"), "Reductive ozonolysis cleaved the alkene and produced the corresponding aldehyde or ketone fragments.");
 }
 function carbonylToMethylene(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
-  return { product: smiles.replace(/C\(=O\)|C=O/g, "C"), note: "Reduction replaced the carbonyl group with a methylene group.", expectedProduct: "", generalScheme: "", exactStructure: true };
+  return exactPrediction(smiles.replace(/C\(=O\)|C=O/g, "C"), "Reduction replaced the carbonyl group with a methylene group.");
 }
 function carbonylToAlcohol(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
-  return { product: smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), note: "Reduction converted the carbonyl group into an alcohol.", expectedProduct: "", generalScheme: "", exactStructure: true };
+  return exactPrediction(smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), "Reduction converted the carbonyl group into an alcohol.");
+}
+function carbonylAddition(smiles: string, branchedProduct: string, terminalProduct: string, note: string) {
+  if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, branchedProduct), note);
+  if (/C=O/.test(smiles)) return exactPrediction(smiles.replace(/C=O/, terminalProduct), note);
+  return null;
+}
+function carbonylCondensation(smiles: string, branchedProduct: string, terminalProduct: string, note: string) {
+  if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, branchedProduct), note);
+  if (/C=O/.test(smiles)) return exactPrediction(smiles.replace(/C=O/, terminalProduct), note);
+  return null;
 }
 function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note: string) {
   if (!/C#C/.test(smiles)) return null;
@@ -215,7 +260,7 @@ function partialAlkyneReduction(smiles: string, geometry: "cis" | "trans", note:
   if (terminal) return replace(smiles, /C#C/g, "C=C", note);
   const linear = smiles.match(/^(C+)C#C(C+)$/);
   if (!linear) return null;
-  return { product: `${linear[1]}/C=C${geometry === "cis" ? "\\" : "/"}${linear[2]}`, note, expectedProduct: "", generalScheme: "", exactStructure: true };
+  return exactPrediction(`${linear[1]}/C=C${geometry === "cis" ? "\\" : "/"}${linear[2]}`, note);
 }
 function simpleHydrocarbonName(smiles: string) {
   if (!/^C(?:[#=]?C)*$/.test(smiles)) return "";
