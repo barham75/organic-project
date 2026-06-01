@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import ProductPredictor from "./ProductPredictor";
 
 type Reaction = {
   id: string;
@@ -1072,13 +1073,7 @@ export default function ReactionsPage() {
                 <p className="mt-2 leading-7 text-slate-700">{detailFor(selected).note}</p>
               </section>
 
-              <section className="mt-4 border-l-4 border-amber-400 bg-amber-50 p-4">
-                <h3 className="font-bold text-amber-950">Example</h3>
-                <ChemicalScheme
-                  equation={detailFor(selected).example}
-                  reagents={detailFor(selected).exampleReagents}
-                />
-              </section>
+              <ProductPredictor reactionId={selected.id} />
 
               <section className="mt-4 border-l-4 border-violet-400 bg-violet-50 p-4">
                 <h3 className="font-bold text-violet-900">Stereochemistry</h3>
