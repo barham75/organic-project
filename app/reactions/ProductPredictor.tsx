@@ -14,6 +14,7 @@ type EditorWindow = Window & typeof globalThis & { ketcher?: ChemicalEditor };
 const editorUrl = "/standalone/index.html";
 
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
+  "alkene-hx": markovnikovAlkeneHBr,
   "alkene-hbr-peroxide": (smiles) => terminalAlkeneAddition(smiles, "terminal", "Br", "Radical addition of HBr placed bromine at the less substituted end of the terminal alkene."),
   "alkene-hydration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Acid-catalyzed hydration placed the alcohol group at the more substituted carbon of the terminal alkene."),
   "alkene-oxymercuration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Oxymercuration-demercuration produced the Markovnikov alcohol without a carbocation rearrangement."),
@@ -257,6 +258,67 @@ function linearCarbonChain(smiles: string) {
   }
   return result;
 }
+type AcyclicAtom = { element: "C" | "Br"; bonds: { atom: number; symbol: string }[] };
+type AcyclicGraph = { atoms: AcyclicAtom[] };
+function parseAcyclicCarbonGraph(smiles: string): AcyclicGraph | null {
+  if (!/^[C()=#\\/]+$/.test(smiles) || /[0-9]/.test(smiles)) return null;
+  const atoms: AcyclicAtom[] = [];
+  const branches: number[] = [];
+  let current = -1;
+  let symbol = "";
+  for (const token of smiles) {
+    if (token === "(") {
+      if (current < 0) return null;
+      branches.push(current);
+      continue;
+    }
+    if (token === ")") {
+      current = branches.pop() ?? -1;
+      if (current < 0) return null;
+      continue;
+    }
+    if (token === "=" || token === "#") {
+      symbol = token;
+      continue;
+    }
+    if (token === "/" || token === "\\") {
+      continue;
+    }
+    if (token !== "C") return null;
+    const next = atoms.push({ element: "C", bonds: [] }) - 1;
+    if (current >= 0) {
+      atoms[current].bonds.push({ atom: next, symbol });
+      atoms[next].bonds.push({ atom: current, symbol });
+    }
+    current = next;
+    symbol = "";
+  }
+  if (!atoms.length || branches.length) return null;
+  return { atoms };
+}
+function carbonSubstitution(graph: AcyclicGraph, atom: number, alkenePartner: number) {
+  return graph.atoms[atom].bonds.filter((bond) => bond.atom !== alkenePartner && graph.atoms[bond.atom].element === "C").length;
+}
+function serializeAcyclicGraph(graph: AcyclicGraph) {
+  const root = graph.atoms.findIndex((atom) => atom.element === "C" && atom.bonds.length <= 1);
+  const visited = new Set<number>();
+  return serializeFrom(root >= 0 ? root : 0, -1, graph, visited);
+}
+function serializeFrom(atomIndex: number, parent: number, graph: AcyclicGraph, visited: Set<number>): string {
+  visited.add(atomIndex);
+  const atom = graph.atoms[atomIndex];
+  const neighbors = atom.bonds
+    .filter((bond) => bond.atom !== parent && !visited.has(bond.atom))
+    .sort((a, b) => Number(graph.atoms[a.atom].element === "Br") - Number(graph.atoms[b.atom].element === "Br"));
+  const main = neighbors.find((bond) => graph.atoms[bond.atom].element === "C") ?? neighbors[0];
+  const branches = neighbors.filter((bond) => bond !== main);
+  let text = atom.element;
+  for (const branch of branches) {
+    text += `(${branch.symbol}${serializeFrom(branch.atom, atomIndex, graph, visited)})`;
+  }
+  if (main) text += `${main.symbol}${serializeFrom(main.atom, atomIndex, graph, visited)}`;
+  return text;
+}
 function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/O$/, halogen), note);
@@ -313,6 +375,28 @@ function terminalAlkeneHalohydrin(smiles: string) {
   if (/^C=C/.test(smiles)) return exactPrediction(smiles.replace(/^C=C/, "BrCC(O)"), note);
   if (/C=C$/.test(smiles)) return exactPrediction(smiles.replace(/C=C$/, "C(O)CBr"), note);
   return null;
+}
+function markovnikovAlkeneHBr(smiles: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  if (!graph) return null;
+  const doubleBond = graph.atoms.flatMap((atom, atomIndex) =>
+    atom.bonds
+      .filter((bond) => bond.symbol === "=" && atomIndex < bond.atom)
+      .map((bond) => ({ left: atomIndex, right: bond.atom })),
+  )[0];
+  if (!doubleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, doubleBond.left, doubleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, doubleBond.right, doubleBond.left);
+  if (leftSubstitution === rightSubstitution) return null;
+  const brominated = leftSubstitution > rightSubstitution ? doubleBond.left : doubleBond.right;
+  const bond = graph.atoms[doubleBond.left].bonds.find((item) => item.atom === doubleBond.right);
+  const reverseBond = graph.atoms[doubleBond.right].bonds.find((item) => item.atom === doubleBond.left);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  const bromine = graph.atoms.push({ element: "Br", bonds: [{ atom: brominated, symbol: "" }] }) - 1;
+  graph.atoms[brominated].bonds.push({ atom: bromine, symbol: "" });
+  return exactPrediction(serializeAcyclicGraph(graph), "HBr addition followed Markovnikov regiochemistry: bromine was placed on the more substituted alkene carbon. The reaction card uses HBr as the displayed HX example.");
 }
 function alkeneOzonolysis(smiles: string) {
   if (!/C=C/.test(smiles)) return null;
