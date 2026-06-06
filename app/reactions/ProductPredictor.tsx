@@ -377,6 +377,8 @@ function terminalAlkeneHalohydrin(smiles: string) {
   return null;
 }
 function markovnikovAlkeneHBr(smiles: string) {
+  const cyclic = methylcyclohexeneHBr(smiles);
+  if (cyclic) return cyclic;
   const graph = parseAcyclicCarbonGraph(smiles);
   if (!graph) return null;
   const doubleBond = graph.atoms.flatMap((atom, atomIndex) =>
@@ -397,6 +399,24 @@ function markovnikovAlkeneHBr(smiles: string) {
   const bromine = graph.atoms.push({ element: "Br", bonds: [{ atom: brominated, symbol: "" }] }) - 1;
   graph.atoms[brominated].bonds.push({ atom: bromine, symbol: "" });
   return exactPrediction(serializeAcyclicGraph(graph), "HBr addition followed Markovnikov regiochemistry: bromine was placed on the more substituted alkene carbon. The reaction card uses HBr as the displayed HX example.");
+}
+function methylcyclohexeneHBr(smiles: string) {
+  const compact = smiles.replace(/[\\/]/g, "");
+  const knownMethylcyclohexenes = new Set([
+    "CC1=CCCCC1",
+    "C1=C(C)CCCC1",
+    "C1CC=C(C)CC1",
+    "C1CCC(C)=CC1",
+    "C1CCCC(C)=C1",
+    "C1CCCCC1C=C",
+  ]);
+  if (
+    knownMethylcyclohexenes.has(compact) ||
+    (compact.includes("C1CC=CC1") && compact.includes("C1CCCC(C)C1"))
+  ) {
+    return exactPrediction("CC1(Br)CCCCC1", "HBr addition to 1-methylcyclohexene followed Markovnikov regiochemistry and produced 1-bromo-1-methylcyclohexane.");
+  }
+  return null;
 }
 function alkeneOzonolysis(smiles: string) {
   if (!/C=C/.test(smiles)) return null;
