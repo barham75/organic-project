@@ -23,7 +23,7 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-halogenation": halogenationAlkene,
   "alkene-hydrogenation": hydrogenationAlkene,
   "alkene-ozonolysis": alkeneOzonolysis,
-  "alkene-epoxidation": (smiles) => replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship."),
+  "alkene-epoxidation": alkeneEpoxidation,
   "alkene-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Syn dihydroxylation added two alcohol groups across the alkene. The drawing shows connectivity; the reaction stereochemistry is syn."),
   "alkene-anti-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Epoxidation followed by hydrolysis added two alcohol groups across the alkene. The drawing shows connectivity; the overall addition is anti."),
   "alkyne-hydrogenation": completeAlkyneHydrogenation,
@@ -380,7 +380,7 @@ function terminalAlkeneHalohydrin(smiles: string) {
   return null;
 }
 function acidCatalyzedAlkeneHydration(smiles: string) {
-  return regioselectiveAlkeneAddition(
+  return branchedTerminalAlkeneAlcohol(smiles, "more") ?? regioselectiveAlkeneAddition(
     smiles,
     "O",
     "more",
@@ -389,7 +389,7 @@ function acidCatalyzedAlkeneHydration(smiles: string) {
   ) ?? methylcycloalkeneAlcohol(smiles, "more", "Acid-catalyzed hydration produced the Markovnikov cycloalkanol.");
 }
 function oxymercurationAlkene(smiles: string) {
-  return regioselectiveAlkeneAddition(
+  return branchedTerminalAlkeneAlcohol(smiles, "more") ?? regioselectiveAlkeneAddition(
     smiles,
     "O",
     "more",
@@ -398,13 +398,48 @@ function oxymercurationAlkene(smiles: string) {
   ) ?? methylcycloalkeneAlcohol(smiles, "more", "Oxymercuration-demercuration produced the Markovnikov cycloalkanol.");
 }
 function hydroborationAlkene(smiles: string) {
-  return regioselectiveAlkeneAddition(
+  return branchedTerminalAlkeneAlcohol(smiles, "less") ?? regioselectiveAlkeneAddition(
     smiles,
     "O",
     "less",
     "Hydroboration-oxidation placed the alcohol group at the less substituted alkene carbon. The addition is syn when stereochemistry applies.",
     "Hydroboration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
   ) ?? methylcycloalkeneAlcohol(smiles, "less", "Hydroboration-oxidation produced the anti-Markovnikov cycloalkanol.");
+}
+function alkeneEpoxidation(smiles: string) {
+  const branched = branchedTerminalAlkeneEpoxide(smiles);
+  if (branched) return branched;
+  return replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship.");
+}
+function branchedTerminalAlkeneAlcohol(smiles: string, position: "more" | "less") {
+  const normalized = smiles.replace(/[\\/]/g, "");
+  const rightTerminal = normalized.match(/^(C+)C\(C\)=C$/);
+  if (rightTerminal) {
+    const product = position === "more" ? `${rightTerminal[1]}C(C)(O)C` : `${rightTerminal[1]}C(C)CO`;
+    return exactPrediction(product, position === "more"
+      ? "Hydration placed OH on the more substituted alkene carbon for this branched terminal alkene."
+      : "Hydroboration-oxidation placed OH on the terminal, less substituted alkene carbon for this branched terminal alkene.");
+  }
+  const leftTerminal = normalized.match(/^C=C\(C\)(C+)$/);
+  if (leftTerminal) {
+    const product = position === "more" ? `CC(C)(O)${leftTerminal[1]}` : `OCC(C)${leftTerminal[1]}`;
+    return exactPrediction(product, position === "more"
+      ? "Hydration placed OH on the more substituted alkene carbon for this branched terminal alkene."
+      : "Hydroboration-oxidation placed OH on the terminal, less substituted alkene carbon for this branched terminal alkene.");
+  }
+  return null;
+}
+function branchedTerminalAlkeneEpoxide(smiles: string) {
+  const normalized = smiles.replace(/[\\/]/g, "");
+  const rightTerminal = normalized.match(/^(C+)C\(C\)=C$/);
+  if (rightTerminal) {
+    return exactPrediction(`${rightTerminal[1]}C1(C)CO1`, "Peroxyacid epoxidation converted the terminal branched alkene into the corresponding epoxide.");
+  }
+  const leftTerminal = normalized.match(/^C=C\(C\)(C+)$/);
+  if (leftTerminal) {
+    return exactPrediction(`C1OC1(C)${leftTerminal[1]}`, "Peroxyacid epoxidation converted the terminal branched alkene into the corresponding epoxide.");
+  }
+  return null;
 }
 function halogenationAlkene(smiles: string) {
   const product = alkeneAdditionProduct(smiles, "both", "Br", "Br");
