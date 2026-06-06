@@ -298,7 +298,7 @@ const reactions: Reaction[] = [
     startingGroup: "Ether and epoxide",
     productGroup: "Alcohol",
     reagents: "Nu-, then H3O+",
-    equation: "epoxide  +  Nu-  ->  Nu-CH2-CH2-OH",
+    equation: "EPOXIDE  +  Nu-  ->  Nu-CH2-CH2-OH",
     note: "Review the substrate, reagents, regiochemistry, and expected product for this transformation.",
     stereo: "Pay attention to the stereochemical outcome and reaction mechanism.",
     reference: "McMurry 7e, Chapter 18",
@@ -536,9 +536,9 @@ const additionalReactions: Reaction[] = [
   { id: "halide-nitrile-formation", title: "Preparation of a Nitrile by SN2 Substitution", substrate: "Primary alkyl halide", product: "Nitrile", category: "Substitution", startingGroup: "Alkyl halide", productGroup: "Nitrile", reagents: "NaCN", equation: "R-Br + NaCN -> R-CN + NaBr", note: "", reference: "McMurry 7e, Chapter 11" },
   { id: "alcohol-alkoxide-formation", title: "Formation of an Alkoxide from an Alcohol", substrate: "Alcohol", product: "Alkoxide", category: "Acid-base reaction", startingGroup: "Alcohol", productGroup: "Alkoxide", reagents: "NaH or Na", equation: "R-OH + NaH -> R-O-Na+ + H2", note: "", reference: "McMurry 7e, Chapter 17" },
   { id: "alcohol-deoxygenation", title: "Deoxygenation of an Alcohol", substrate: "Alcohol", product: "Alkane", category: "Reduction", startingGroup: "Alcohol", productGroup: "Alkane", reagents: "1. TsCl, pyridine  2. LiAlH4", equation: "R-OH -> R-H", note: "", reference: "McMurry 7e, Chapter 17" },
-  { id: "epoxide-opening-hydride", title: "Opening of an Epoxide with Hydride", substrate: "Epoxide", product: "Alcohol", category: "Ring opening", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "1. LiAlH4  2. H3O+", equation: "epoxide -> R-CH2-CH2-OH", note: "", stereo: "Hydride attacks the less hindered epoxide carbon under basic conditions with inversion at the attacked center.", reference: "McMurry 7e, Chapter 18" },
-  { id: "epoxide-opening-alkoxide", title: "Opening of an Epoxide with an Alkoxide", substrate: "Epoxide", product: "Beta-alkoxy alcohol", category: "Ring opening", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "1. R'O-  2. H3O+", equation: "epoxide + R'O- -> R'O-CH2-CH2-OH", note: "", stereo: "Alkoxide attacks the less hindered epoxide carbon by an SN2 pathway.", reference: "McMurry 7e, Chapter 18" },
-  { id: "halohydrin-epoxide-formation", title: "Formation of an Epoxide from a Halohydrin", substrate: "Halohydrin", product: "Epoxide", category: "Intramolecular substitution", startingGroup: "Ether and epoxide", productGroup: "Epoxide", reagents: "NaOH", equation: "HO-CH2-CH2-Br -> epoxide + Br-", note: "", reference: "McMurry 7e, Chapter 18" },
+  { id: "epoxide-opening-hydride", title: "Opening of an Epoxide with Hydride", substrate: "Epoxide", product: "Alcohol", category: "Ring opening", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "1. LiAlH4  2. H3O+", equation: "EPOXIDE -> R-CH2-CH2-OH", note: "", stereo: "Hydride attacks the less hindered epoxide carbon under basic conditions with inversion at the attacked center.", reference: "McMurry 7e, Chapter 18" },
+  { id: "epoxide-opening-alkoxide", title: "Opening of an Epoxide with an Alkoxide", substrate: "Epoxide", product: "Beta-alkoxy alcohol", category: "Ring opening", startingGroup: "Ether and epoxide", productGroup: "Alcohol", reagents: "1. R'O-  2. H3O+", equation: "EPOXIDE + R'O- -> R'O-CH2-CH2-OH", note: "", stereo: "Alkoxide attacks the less hindered epoxide carbon by an SN2 pathway.", reference: "McMurry 7e, Chapter 18" },
+  { id: "halohydrin-epoxide-formation", title: "Formation of an Epoxide from a Halohydrin", substrate: "Halohydrin", product: "Epoxide", category: "Intramolecular substitution", startingGroup: "Ether and epoxide", productGroup: "Epoxide", reagents: "NaOH", equation: "HO-CH2-CH2-Br -> EPOXIDE + Br-", note: "", reference: "McMurry 7e, Chapter 18" },
   { id: "benzene-birch-reduction", title: "Birch Reduction of an Aromatic Ring", substrate: "Benzene derivative", product: "1,4-Cyclohexadiene", category: "Reduction", startingGroup: "Aromatic compound", productGroup: "Cyclic alkene", reagents: "Na, NH3(l), ROH", equation: "C6H6 -> 1,4-cyclohexadiene", note: "", reference: "McMurry 7e, Chapter 16" },
   { id: "benzene-nucleophilic-aromatic-substitution", title: "Nucleophilic Aromatic Substitution", substrate: "Activated aryl halide", product: "Substituted aromatic compound", category: "Aromatic substitution", startingGroup: "Aromatic compound", productGroup: "Aromatic compound", reagents: "OH-, heat", equation: "O2N-C6H4-Cl + OH- -> O2N-C6H4-OH", note: "", reference: "McMurry 7e, Chapter 16" },
   { id: "benzene-diazonium-phenol", title: "Hydrolysis of an Arenediazonium Salt", substrate: "Arenediazonium salt", product: "Phenol", category: "Aromatic substitution", startingGroup: "Aromatic compound", productGroup: "Phenol", reagents: "H2O, heat", equation: "C6H5-N2+ -> C6H5-OH + N2", note: "", reference: "McMurry 7e, Chapter 24" },
@@ -627,6 +627,7 @@ function RingMolecule({ value }: { value: string }) {
 }
 
 function Molecule({ value }: { value: string }) {
+  if (value.trim() === "EPOXIDE") return <EpoxideMolecule />;
   if (value.toLowerCase().includes("cyclohex")) return <RingMolecule value={value} />;
   const parts = value.trim().split(/(-|=|#)/).filter(Boolean);
   return (
@@ -634,6 +635,23 @@ function Molecule({ value }: { value: string }) {
       {parts.map((part, index) =>
         part === "-" || part === "=" || part === "#" ? <Bond key={`${part}-${index}`} type={part} /> : <FormulaText key={`${part}-${index}`} value={part} />,
       )}
+    </span>
+  );
+}
+
+function EpoxideMolecule() {
+  return (
+    <span className="inline-flex min-h-16 min-w-32 items-center justify-center">
+      <svg viewBox="0 0 140 72" className="h-16 w-32" role="img" aria-label="epoxide ring">
+        <text x="63" y="16" textAnchor="middle" className="fill-red-600 font-serif text-[18px] font-bold">O</text>
+        <text x="18" y="66" textAnchor="middle" className="fill-slate-950 font-serif text-[18px] font-bold">R</text>
+        <text x="53" y="62" textAnchor="middle" className="fill-slate-950 font-serif text-[18px] font-bold">CH</text>
+        <text x="104" y="62" textAnchor="middle" className="fill-slate-950 font-serif text-[18px] font-bold">CH2</text>
+        <line x1="58" y1="22" x2="51" y2="42" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
+        <line x1="68" y1="22" x2="91" y2="42" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
+        <line x1="60" y1="48" x2="85" y2="48" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
+        <line x1="31" y1="50" x2="42" y2="50" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
+      </svg>
     </span>
   );
 }
