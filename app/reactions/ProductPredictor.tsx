@@ -835,6 +835,7 @@ function methylcyclohexeneHBr(smiles: string) {
     "CC1=CCCCC1",
     "C1=C(C)CCCC1",
     "C1CC=C(C)CC1",
+    "C1CCC=C(C)C1",
     "C1CCC(C)=CC1",
     "C1CCCC(C)=C1",
     "C1CCCCC1C=C",
@@ -871,7 +872,7 @@ function methylcycloalkeneHydrogenation(smiles: string) {
 function methylcycloalkeneRingSize(smiles: string) {
   const compact = smiles.replace(/[\\/]/g, "");
   const methylcyclopentenes = new Set(["C1C(C)=CCC1", "C1CC=C(C)C1", "C1CCC(C)=C1", "CC1=CCCC1"]);
-  const methylcyclohexenes = new Set(["C1C(C)=CCCC1", "C1CC=C(C)CC1", "C1CCC(C)=CC1", "C1CCCC(C)=C1", "CC1=CCCCC1"]);
+  const methylcyclohexenes = new Set(["C1C(C)=CCCC1", "C1CC=C(C)CC1", "C1CCC=C(C)C1", "C1CCC(C)=CC1", "C1CCCC(C)=C1", "CC1=CCCCC1"]);
   if (methylcyclopentenes.has(compact)) return 5;
   if (methylcyclohexenes.has(compact)) return 6;
   return null;
