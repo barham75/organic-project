@@ -14,6 +14,11 @@ type EditorWindow = Window & typeof globalThis & { ketcher?: ChemicalEditor };
 const editorUrl = "/standalone/index.html";
 
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
+  "alkane-bromination": (smiles) => alkaneHalogenation(smiles, "Br"),
+  "alkane-chlorination": (smiles) => alkaneHalogenation(smiles, "Cl"),
+  "alkane-combustion": combustionProducts,
+  "alkane-cracking": alkaneCracking,
+  "cycloalkane-combustion": combustionProducts,
   "alkene-hx": markovnikovAlkeneHBr,
   "alkene-hbr-peroxide": radicalAlkeneHBr,
   "alkene-hydration": acidCatalyzedAlkeneHydration,
@@ -24,8 +29,10 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-hydrogenation": hydrogenationAlkene,
   "alkene-ozonolysis": alkeneOzonolysis,
   "alkene-epoxidation": alkeneEpoxidation,
-  "alkene-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Syn dihydroxylation added two alcohol groups across the alkene. The drawing shows connectivity; the reaction stereochemistry is syn."),
-  "alkene-anti-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Epoxidation followed by hydrolysis added two alcohol groups across the alkene. The drawing shows connectivity; the overall addition is anti."),
+  "alkene-dihydroxylation": alkeneDihydroxylation,
+  "alkene-anti-dihydroxylation": alkeneDihydroxylation,
+  "alkene-cyclopropanation": alkeneCyclopropanation,
+  "alkene-oxidative-cleavage": alkeneOxidativeCleavage,
   "alkyne-hydrogenation": completeAlkyneHydrogenation,
   "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "cis", "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
   "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "trans", "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
@@ -38,25 +45,61 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkyne-halogenation-two-equivalents": twoEquivalentAlkyneHalogenation,
   "alkyne-oxidative-cleavage": internalAlkyneOxidativeCleavage,
   "alkyne-internal-hydration": internalAlkyneHydration,
+  "halide-sn2": (smiles) => halideReplacement(smiles, "O", "SN2 substitution replaced the leaving group with hydroxide to give the alcohol."),
+  "halide-sn1": (smiles) => halideReplacement(smiles, "O", "SN1 solvolysis replaced the leaving group with an alcohol group. Rearrangements are not modeled."),
+  "halide-e2": halideElimination,
+  "halide-e1": halideElimination,
+  "halide-grignard-formation": (smiles) => halideReplacement(smiles, "[Mg]Br", "Magnesium inserted into the carbon-halogen bond to form the Grignard reagent. The drawing uses MgBr as the organometallic group."),
+  "halide-organolithium-formation": (smiles) => halideReplacement(smiles, "[Li]", "Lithium-halogen exchange formed an organolithium reagent. The drawing omits inorganic salts."),
+  "halide-organocuprate-coupling": (smiles) => halideReplacement(smiles, "C", "Organocuprate coupling replaced the halide with a methyl fragment as the displayed coupling partner."),
   "halide-nitrile-formation": (smiles) => terminalHalideReplacement(smiles, "C#N", "Cyanide displaced the terminal halide by an SN2 reaction and added one carbon atom to the chain."),
   "amine-gabriel-synthesis": (smiles) => terminalHalideReplacement(smiles, "N", "Gabriel synthesis converted the terminal primary alkyl halide into a primary amine."),
+  "alcohol-hx": (smiles) => alcoholReplacement(smiles, "Br", "HX converted the alcohol into an alkyl bromide in this displayed rule."),
   "alcohol-pbr3": (smiles) => terminalAlcohol(smiles, "Br", "PBr3 replaced the alcohol group with bromine."),
   "alcohol-socl2": (smiles) => terminalAlcohol(smiles, "Cl", "SOCl2 replaced the alcohol group with chlorine."),
+  "alcohol-tosylate": (smiles) => alcoholReplacement(smiles, "OS(=O)(=O)c1ccccc1", "Tosyl chloride converted the alcohol into a tosylate leaving group."),
   "alcohol-alkoxide-formation": (smiles) => terminalAlcohol(smiles, "[O-]", "Deprotonation converted the alcohol into an alkoxide. The counterion is omitted from the structural drawing."),
   "alcohol-deoxygenation": (smiles) => terminalAlcohol(smiles, "", "Deoxygenation replaced the terminal alcohol group with hydrogen."),
+  "alcohol-oxidation-primary": primaryAlcoholOxidation,
+  "alcohol-oxidation-secondary": secondaryAlcoholOxidation,
+  "alcohol-dehydration": alcoholDehydration,
+  "ether-cleavage": etherCleavage,
+  "ether-williamson": williamsonEther,
   "amine-nitrous-acid": (smiles) => replace(smiles, /N$/g, "O", "Nitrous acid converted the terminal primary aliphatic amine into an alcohol with loss of nitrogen gas."),
+  "amine-alkylation": (smiles) => replace(smiles, /N$/g, "NC", "Alkylation added a methyl substituent to the amine as the displayed alkyl group."),
+  "amine-acylation": (smiles) => replace(smiles, /N$/g, "NC(C)=O", "Acylation converted the amine into an amide using an acetyl group as the displayed acyl fragment."),
   "epoxide-opening-basic": ethyleneOxideHydrolysis,
   "epoxide-opening-acid": ethyleneOxideHydrolysis,
   "epoxide-opening-hydride": ethyleneOxideHydrideOpening,
+  "epoxide-opening-alkoxide": ethyleneOxideMethoxideOpening,
+  "epoxide-grignard": ethyleneOxideGrignardOpening,
   "halohydrin-epoxide-formation": bromoethanolToEthyleneOxide,
+  "acid-esterification": carboxylicAcidToMethylEster,
+  "acid-decarboxylation": decarboxylation,
+  "acid-hvz": hvzBromination,
+  "acid-malonic-ester-synthesis": malonicEsterSynthesis,
+  "acid-acetoacetic-ester-synthesis": acetoaceticEsterSynthesis,
   "ester-hydrolysis": esterToCarboxylate,
   "ester-acidic-hydrolysis": esterToCarboxylicAcid,
   "ester-reduction": esterToPrimaryAlcohol,
   "ester-dibal": esterToAldehyde,
+  "ester-grignard": esterToTertiaryAlcohol,
+  "ester-transesterification": esterTransesterification,
+  "anhydride-ester": anhydrideToEster,
+  "anhydride-hydrolysis": anhydrideHydrolysis,
+  "anhydride-amide": anhydrideToAmide,
+  "anhydride-reduction": anhydrideReduction,
+  "lactone-hydrolysis": lactoneHydrolysis,
+  "lactone-formation": lactoneFormation,
   "benzene-bromination": (smiles) => benzeneSubstitution(smiles, "Br", "Electrophilic aromatic substitution converted benzene into bromobenzene."),
   "benzene-chlorination": (smiles) => benzeneSubstitution(smiles, "Cl", "Electrophilic aromatic substitution converted benzene into chlorobenzene."),
   "benzene-nitration": (smiles) => benzeneSubstitution(smiles, "[N+](=O)[O-]", "Electrophilic aromatic substitution converted benzene into nitrobenzene."),
   "benzene-sulfonation": (smiles) => benzeneSubstitution(smiles, "S(=O)(=O)(O)", "Electrophilic aromatic substitution converted benzene into benzenesulfonic acid."),
+  "benzene-friedel-crafts": (smiles) => benzeneSubstitution(smiles, "C", "Friedel-Crafts alkylation attached a methyl group as the displayed alkyl fragment."),
+  "benzene-fc-acylation": (smiles) => benzeneSubstitution(smiles, "C(C)=O", "Friedel-Crafts acylation attached an acetyl group as the displayed acyl fragment."),
+  "benzene-side-chain-oxidation": alkylbenzeneSideChainOxidation,
+  "benzene-alkyl-side-chain-bromination": benzylicBromination,
+  "benzene-nucleophilic-aromatic-substitution": activatedArylHalideHydrolysis,
   "benzene-nitro-reduction": nitrobenzeneToAniline,
   "benzene-diazonium": anilineToDiazonium,
   "benzene-sandmeyer": (smiles) => diazoniumReplacement(smiles, "Cl", "Sandmeyer substitution replaced the diazonium group with chlorine and released nitrogen gas."),
@@ -65,18 +108,41 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "benzene-diazonium-reduction": (smiles) => diazoniumReplacement(smiles, "", "Reduction replaced the diazonium group with hydrogen and released nitrogen gas."),
   "benzene-birch-reduction": benzeneBirchReduction,
   "carbonyl-reduction": carbonylToAlcohol,
+  "carbonyl-grignard": carbonylGrignard,
+  "carbonyl-wittig": carbonylWittig,
   "carbonyl-cyanohydrin": (smiles) => carbonylAddition(smiles, "C(O)(C#N)", "C(O)C#N", "Cyanide addition followed by protonation converted the carbonyl group into a cyanohydrin."),
   "carbonyl-hydrate": (smiles) => carbonylAddition(smiles, "C(O)(O)", "C(O)O", "Hydration converted the carbonyl group into a geminal diol."),
+  "carbonyl-hemiacetal": (smiles) => carbonylAddition(smiles, "C(O)(OC)", "C(O)OC", "Addition of methanol produced the displayed hemiacetal."),
+  "carbonyl-acetal": carbonylAcetal,
+  "carbonyl-acetal-hydrolysis": acetalHydrolysis,
   "carbonyl-oxime": (smiles) => carbonylCondensation(smiles, "C(=NO)", "C=NO", "Reaction with hydroxylamine converted the carbonyl group into an oxime."),
   "carbonyl-hydrazone": (smiles) => carbonylCondensation(smiles, "C(=NN)", "C=NN", "Reaction with hydrazine converted the carbonyl group into a hydrazone."),
+  "carbonyl-imine": (smiles) => carbonylCondensation(smiles, "C=NC", "C=NC", "Condensation with a primary amine produced the displayed imine."),
+  "carbonyl-enamine": carbonylEnamine,
   "carbonyl-clemmensen": carbonylToMethylene,
   "carbonyl-wolff-kishner": carbonylToMethylene,
+  "carbonyl-baeyer-villiger": baeyerVilliger,
+  "carbonyl-alpha-bromination": alphaBromination,
+  "carbonyl-organocuprate-conjugate-addition": conjugateAddition,
+  "carbonyl-aldol": aldolAddition,
+  "carbonyl-aldol-condensation": aldolCondensation,
+  "carbonyl-crossed-aldol": aldolCondensation,
+  "carbonyl-intramolecular-aldol": intramolecularAldol,
+  "carbonyl-cannizzaro": cannizzaro,
+  "carbonyl-haloform": haloform,
+  "carbonyl-michael-addition": conjugateAddition,
+  "carbonyl-enolate-alkylation": alphaMethylation,
+  "carbonyl-stork-enamine": alphaMethylation,
+  "carbonyl-robinson-annulation": robinsonAnnulation,
   "aldehyde-oxidation": (smiles) => replace(smiles, /C=O$/g, "C(=O)O", "Oxidation converted the aldehyde group into a carboxylic acid."),
   "acid-reduction": (smiles) => replace(smiles, /C\(=O\)O/g, "CO", "Reduction converted the carboxylic acid group into a primary alcohol."),
   "acid-deprotonation": carboxylicAcidToCarboxylate,
   "acid-bicarbonate": carboxylicAcidToCarboxylate,
   "acid-diazomethane": (smiles) => replace(smiles, /C\(=O\)O/g, "C(=O)OC", "Diazomethane converted the carboxylic acid into its methyl ester."),
   "acid-socl2": (smiles) => replace(smiles, /C\(=O\)O/g, "C(=O)Cl", "SOCl2 converted the carboxylic acid into an acid chloride."),
+  "acid-chloride-ester": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)OC", "Alcohol converted the acid chloride into a methyl ester as the displayed alcohol partner."),
+  "acid-chloride-anhydride": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)OC(=O)C", "Carboxylate converted the acid chloride into an anhydride. Acetate is used as the displayed partner."),
+  "acid-chloride-gilman": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)C", "Gilman reagent converted the acid chloride into a ketone using methyl as the displayed alkyl group."),
   "acid-chloride-hydrolysis": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)O", "Hydrolysis converted the acid chloride into a carboxylic acid."),
   "acid-chloride-amide": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C(=O)N", "Reaction with ammonia converted the acid chloride into a primary amide."),
   "acid-chloride-reduction": (smiles) => replace(smiles, /C\(=O\)Cl/g, "C=O", "Rosenmund reduction converted the acid chloride into an aldehyde."),
@@ -84,13 +150,24 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "nitrile-basic-hydrolysis": (smiles) => replace(smiles, /C#N/g, "C(=O)O", "Basic hydrolysis followed by acidic workup converted the nitrile into a carboxylic acid."),
   "nitrile-reduction": (smiles) => replace(smiles, /C#N/g, "CN", "Reduction converted the nitrile into a primary amine."),
   "nitrile-dibal": (smiles) => replace(smiles, /C#N/g, "C=O", "Partial DIBAL-H reduction followed by hydrolysis converted the nitrile into an aldehyde."),
+  "nitrile-grignard": (smiles) => replace(smiles, /C#N/g, "C(=O)C", "Grignard addition to the nitrile followed by hydrolysis gave a ketone. Methyl is used as the displayed Grignard fragment."),
   "amide-reduction": (smiles) => replace(smiles, /C\(=O\)N/g, "CN", "LiAlH4 reduction converted the amide carbonyl group into a methylene group while retaining nitrogen."),
   "amide-hydrolysis": (smiles) => replace(smiles, /C\(=O\)N/g, "C(=O)O", "Acidic hydrolysis converted the amide into a carboxylic acid."),
   "amide-basic-hydrolysis": (smiles) => replace(smiles, /C\(=O\)N/g, "C(=O)[O-]", "Basic hydrolysis converted the amide into a carboxylate salt. The counterion is omitted from the structural drawing."),
   "amide-dehydration": (smiles) => replace(smiles, /C\(=O\)N/g, "C#N", "Dehydration converted the primary amide into a nitrile."),
   "amide-hofmann": (smiles) => replace(smiles, /C\(=O\)N/g, "N", "Hofmann rearrangement converted the primary amide into an amine with one fewer carbon atom."),
+  "amine-reductive-amination": reductiveAmination,
+  "amine-hofmann-elimination": hofmannElimination,
+  "ester-aminolysis": esterAminolysis,
+  "ester-enolate-alkylation": esterAlphaMethylation,
+  "claisen-condensation": claisenCondensation,
+  "ester-dieckmann": dieckmannCondensation,
   "cyclic-bromination": cyclohexeneAntiBromination,
   "cyclic-dihydroxylation": cyclohexeneSynDihydroxylation,
+  "cyclic-hydroboration": hydroborationAlkene,
+  "cyclic-oxymercuration": oxymercurationAlkene,
+  "cyclic-hydrogenation": hydrogenationAlkene,
+  "cyclic-e2": methylcyclohexeneE2,
 };
 
 type ProductPredictorProps = {
@@ -263,6 +340,19 @@ function linearCarbonChain(smiles: string) {
 }
 type AcyclicAtom = { element: "C" | "Br" | "O"; bonds: { atom: number; symbol: string }[] };
 type AcyclicGraph = { atoms: AcyclicAtom[] };
+function alkaneHalogenation(smiles: string, halogen: "Cl" | "Br") {
+  if (!/^C+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C$/, `C${halogen}`), `Radical halogenation replaced one terminal hydrogen with ${halogen}. Constitutional mixtures are possible for larger alkanes.`);
+}
+function combustionProducts(smiles: string) {
+  if (!/C/.test(smiles)) return null;
+  return exactPrediction("O=C=O.O", "Combustion is represented by carbon dioxide and water. Stoichiometric coefficients are omitted from the structural drawing.");
+}
+function alkaneCracking(smiles: string) {
+  if (!/^C{5,}$/.test(smiles)) return null;
+  const midpoint = Math.floor((smiles.match(/C/g) ?? []).length / 2);
+  return exactPrediction(`${"C".repeat(midpoint)}.${"C".repeat(Math.max(2, smiles.length - midpoint - 1))}=C`, "Cracking is represented by a shorter alkane and a shorter alkene fragment.");
+}
 function parseAcyclicCarbonGraph(smiles: string): AcyclicGraph | null {
   if (!/^[C()=#\\/]+$/.test(smiles) || /[0-9]/.test(smiles)) return null;
   const atoms: AcyclicAtom[] = [];
@@ -326,9 +416,53 @@ function terminalAlcohol(smiles: string, halogen: string, note: string) {
   if (!/O$/.test(smiles) || /C\(=O\)O$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/O$/, halogen), note);
 }
+function alcoholReplacement(smiles: string, replacement: string, note: string) {
+  if (/C\(=O\)O/.test(smiles)) return null;
+  if (/O$/.test(smiles)) return exactPrediction(smiles.replace(/O$/, replacement), note);
+  if (/C\(O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(O\)/, `C(${replacement})`), note);
+  return null;
+}
+function halideReplacement(smiles: string, replacement: string, note: string) {
+  if (!/(Cl|Br|I)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/(Cl|Br|I)(?!.*(?:Cl|Br|I))/, replacement), note);
+}
 function terminalHalideReplacement(smiles: string, group: string, note: string) {
   if (!/(?:Cl|Br|I)$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/(?:Cl|Br|I)$/, group), note);
+}
+function halideElimination(smiles: string) {
+  const terminal = smiles.match(/^(.*)C(?:Cl|Br|I)$/);
+  if (terminal && /C$/.test(terminal[1])) {
+    return exactPrediction(`${terminal[1]}=C`, "Elimination removed HX and formed the terminal alkene. Zaitsev and stereochemical alternatives are not exhaustively modeled.");
+  }
+  const secondary = smiles.match(/^(.*)C\((?:Cl|Br|I)\)C(.*)$/);
+  if (secondary) {
+    return exactPrediction(`${secondary[1]}C=C${secondary[2]}`, "Elimination removed HX and formed an alkene between the halogen-bearing carbon and an adjacent carbon.");
+  }
+  return null;
+}
+function primaryAlcoholOxidation(smiles: string) {
+  if (/CO$/.test(smiles)) return exactPrediction(smiles.replace(/CO$/, "C=O"), "Primary alcohol oxidation is shown to the aldehyde stage. Stronger oxidants can continue to the carboxylic acid.");
+  return null;
+}
+function secondaryAlcoholOxidation(smiles: string) {
+  if (/C\(O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(O\)/, "C(=O)"), "Secondary alcohol oxidation converted the alcohol into a ketone.");
+  return null;
+}
+function alcoholDehydration(smiles: string) {
+  if (/CC\(O\)/.test(smiles)) return exactPrediction(smiles.replace(/CC\(O\)/, "C=C"), "Dehydration removed water and formed the alkene. Regioisomeric alkenes can occur for unsymmetrical substrates.");
+  if (/C\(O\)C/.test(smiles)) return exactPrediction(smiles.replace(/C\(O\)C/, "C=C"), "Dehydration removed water and formed the alkene. Regioisomeric alkenes can occur for unsymmetrical substrates.");
+  if (/CO$/.test(smiles)) return exactPrediction(smiles.replace(/CO$/, "=C"), "Dehydration of a terminal alcohol formed the terminal alkene when a beta hydrogen is available.");
+  return null;
+}
+function etherCleavage(smiles: string) {
+  if (!/COC/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/COC/, "CO.CBr"), "Acidic ether cleavage is represented as one alcohol fragment and one alkyl bromide fragment.");
+}
+function williamsonEther(smiles: string) {
+  if (/\[O-\]$/.test(smiles)) return exactPrediction(smiles.replace(/\[O-\]$/, "OC"), "Williamson synthesis is represented by methylation of the alkoxide to form an ether.");
+  if (/O$/.test(smiles)) return exactPrediction(smiles.replace(/O$/, "OC"), "Williamson synthesis is represented by converting the alcohol-derived alkoxide into a methyl ether.");
+  return null;
 }
 function ethyleneOxideHydrolysis(smiles: string) {
   if (!isEthyleneOxide(smiles)) return null;
@@ -337,6 +471,14 @@ function ethyleneOxideHydrolysis(smiles: string) {
 function ethyleneOxideHydrideOpening(smiles: string) {
   if (!isEthyleneOxide(smiles)) return null;
   return exactPrediction("CCO", "Hydride opened ethylene oxide and produced ethanol after acidic workup.");
+}
+function ethyleneOxideMethoxideOpening(smiles: string) {
+  if (!isEthyleneOxide(smiles)) return null;
+  return exactPrediction("COCCO", "Methoxide opened ethylene oxide to give a beta-methoxy alcohol after workup.");
+}
+function ethyleneOxideGrignardOpening(smiles: string) {
+  if (!isEthyleneOxide(smiles)) return null;
+  return exactPrediction("CCCO", "A methyl Grignard reagent opened ethylene oxide and extended the chain by two carbons before protonation.");
 }
 function bromoethanolToEthyleneOxide(smiles: string) {
   if (smiles !== "OCCBr" && smiles !== "BrCCO") return null;
@@ -360,6 +502,57 @@ function esterToPrimaryAlcohol(smiles: string) {
 function esterToAldehyde(smiles: string) {
   if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C=O"), "DIBAL-H partial reduction converted the ester into an aldehyde.");
+}
+function carboxylicAcidToMethylEster(smiles: string) {
+  return replace(smiles, /C\(=O\)O/g, "C(=O)OC", "Fischer esterification converted the carboxylic acid into the methyl ester as the displayed alcohol partner.");
+}
+function decarboxylation(smiles: string) {
+  if (!/C\(=O\)O/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O/, ""), "Decarboxylation removed the carboxyl group as carbon dioxide. The remaining organic fragment is shown.");
+}
+function hvzBromination(smiles: string) {
+  if (/CC\(=O\)O/.test(smiles)) return exactPrediction(smiles.replace(/CC\(=O\)O/, "C(Br)C(=O)O"), "HVZ bromination installed bromine at the alpha carbon of the carboxylic acid.");
+  return null;
+}
+function malonicEsterSynthesis(smiles: string) {
+  if (!/C\(=O\)O/.test(smiles)) return null;
+  return exactPrediction("CCC(=O)O", "Malonic ester synthesis is represented by formation of a substituted acetic acid after hydrolysis and decarboxylation. Ethyl is used as the displayed alkyl group.");
+}
+function acetoaceticEsterSynthesis(smiles: string) {
+  if (!/C\(=O\)/.test(smiles)) return null;
+  return exactPrediction("CCC(=O)C", "Acetoacetic ester synthesis is represented by formation of an alkylated methyl ketone. Ethyl is used as the displayed alkyl group.");
+}
+function esterToTertiaryAlcohol(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C(O)(C)C"), "Excess Grignard reagent converted the ester into a tertiary alcohol. Methyl groups are used as the displayed Grignard fragments.");
+}
+function esterTransesterification(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C(=O)OC"), "Transesterification replaced the alkoxy group with methoxy as the displayed alcohol partner.");
+}
+function anhydrideToEster(smiles: string) {
+  if (!/C\(=O\)OC\(=O\)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)OC\(=O\).*/, "C(=O)OC"), "Alcoholysis converted one anhydride acyl fragment into an ester. The carboxylic acid coproduct is omitted.");
+}
+function anhydrideHydrolysis(smiles: string) {
+  if (!/C\(=O\)OC\(=O\)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)OC\(=O\).*/, "C(=O)O"), "Hydrolysis converted the anhydride into carboxylic acids. One representative acid fragment is shown.");
+}
+function anhydrideToAmide(smiles: string) {
+  if (!/C\(=O\)OC\(=O\)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)OC\(=O\).*/, "C(=O)N"), "Ammonia or an amine converted one anhydride acyl fragment into an amide. The acid coproduct is omitted.");
+}
+function anhydrideReduction(smiles: string) {
+  if (!/C\(=O\)OC\(=O\)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)OC\(=O\).*/, "CO"), "LiAlH4 reduction of the anhydride is represented by the primary alcohol from one acyl fragment.");
+}
+function lactoneHydrolysis(smiles: string) {
+  if (!/C1.*C\(=O\)O.*1|O1.*C\(=O\).*1/.test(smiles)) return null;
+  return exactPrediction("OCCCC(=O)O", "Lactone hydrolysis opened the ring to a hydroxy carboxylic acid. The drawing shows a representative open-chain product.");
+}
+function lactoneFormation(smiles: string) {
+  if (!/O.*C\(=O\)O|C\(=O\)O.*O/.test(smiles)) return null;
+  return exactPrediction("O=C1OCCC1", "Intramolecular esterification formed a lactone. The drawing shows a representative five-membered lactone.");
 }
 function carboxylicAcidToCarboxylate(smiles: string) {
   return replace(smiles, /C\(=O\)O/g, "C(=O)[O-]", "Deprotonation converted the carboxylic acid into a carboxylate salt. The counterion is omitted from the structural drawing.");
@@ -410,6 +603,34 @@ function alkeneEpoxidation(smiles: string) {
   const branched = branchedTerminalAlkeneEpoxide(smiles);
   if (branched) return branched;
   return replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship.");
+}
+function alkeneDihydroxylation(smiles: string) {
+  const product = alkeneAdditionProduct(smiles, "both", "O", "O");
+  if (product) return exactPrediction(product, "Dihydroxylation added OH to both alkene carbons. The drawing shows connectivity; syn or anti stereochemistry depends on the selected reaction card.");
+  return replace(smiles, /C=C/, "C(O)C(O)", "Dihydroxylation added two alcohol groups across the alkene.");
+}
+function alkeneCyclopropanation(smiles: string) {
+  if (!/C=C/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C=C/, "C1CC1"), "Cyclopropanation converted the alkene into a cyclopropane. The drawing preserves connectivity in a simplified representative way.");
+}
+function alkeneOxidativeCleavage(smiles: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const doubleBond = firstDoubleBond(graph);
+  if (!graph || !doubleBond) return alkeneOzonolysis(smiles);
+  const leftSubstitution = carbonSubstitution(graph, doubleBond.left, doubleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, doubleBond.right, doubleBond.left);
+  const left = leftSubstitution === 0 ? "O=C=O" : carbonylFragmentAt(graph, doubleBond.left, doubleBond.right, leftSubstitution === 1 ? "acid" : "ketone");
+  const right = rightSubstitution === 0 ? "O=C=O" : carbonylFragmentAt(graph, doubleBond.right, doubleBond.left, rightSubstitution === 1 ? "acid" : "ketone");
+  if (!left || !right) return null;
+  return exactPrediction(`${left}.${right}`, "Strong oxidative cleavage split the alkene into carbonyl or carboxylic acid fragments. Terminal CH2 gives carbon dioxide.");
+}
+function carbonylFragmentAt(graph: AcyclicGraph, carbonyl: number, blocked: number, mode: "ketone" | "acid") {
+  const copy = cloneAcyclicGraph(graph);
+  copy.atoms[carbonyl].bonds = copy.atoms[carbonyl].bonds.filter((bond) => bond.atom !== blocked);
+  for (const atom of copy.atoms) atom.bonds = atom.bonds.filter((bond) => bond.atom !== blocked);
+  addBondedAtom(copy, carbonyl, "O", "=");
+  if (mode === "acid") addBondedAtom(copy, carbonyl, "O");
+  return serializeAcyclicGraph(copy);
 }
 function branchedTerminalAlkeneAlcohol(smiles: string, position: "more" | "less") {
   const normalized = smiles.replace(/[\\/]/g, "");
@@ -816,6 +1037,19 @@ function benzeneSubstitution(smiles: string, group: string, note: string) {
   if (smiles === "C1=CC=CC=C1") return exactPrediction(`${group}C1=CC=CC=C1`, note);
   return null;
 }
+function alkylbenzeneSideChainOxidation(smiles: string) {
+  if (/Cc1ccccc1|c1ccccc1C/.test(smiles)) return exactPrediction("O=C(O)c1ccccc1", "Oxidation of an alkylbenzene side chain produced benzoic acid when a benzylic hydrogen is available.");
+  return null;
+}
+function benzylicBromination(smiles: string) {
+  if (/Cc1ccccc1/.test(smiles)) return exactPrediction(smiles.replace(/C(?=c1ccccc1)/, "CBr"), "NBS brominated the benzylic position.");
+  if (/c1ccccc1C/.test(smiles)) return exactPrediction(smiles.replace(/c1ccccc1C/, "c1ccccc1CBr"), "NBS brominated the benzylic position.");
+  return null;
+}
+function activatedArylHalideHydrolysis(smiles: string) {
+  if (!/(Cl|Br|I).*c1|c1.*(Cl|Br|I)/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/Cl|Br|I/, "O"), "Nucleophilic aromatic substitution replaced the aryl halide with hydroxyl on an activated aromatic ring.");
+}
 function nitrobenzeneToAniline(smiles: string) {
   if (smiles === "[N+](=O)[O-]c1ccccc1") return exactPrediction("Nc1ccccc1", "Reduction converted nitrobenzene into aniline.");
   return null;
@@ -840,14 +1074,104 @@ function carbonylToAlcohol(smiles: string) {
   if (!/C\(=O\)|C=O/.test(smiles)) return null;
   return exactPrediction(smiles.replace(/C\(=O\)/g, "C(O)").replace(/C=O/g, "CO"), "Reduction converted the carbonyl group into an alcohol.");
 }
+function carbonylGrignard(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)/, "C(O)(C)").replace(/C=O/, "C(O)C"), "Grignard addition attached a methyl group as the displayed organometallic fragment and formed an alcohol after workup.");
+}
+function carbonylWittig(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)/, "C=C").replace(/C=O/, "C=C"), "Wittig reaction replaced the carbonyl oxygen with a methylene group to form an alkene.");
+}
 function carbonylAddition(smiles: string, branchedProduct: string, terminalProduct: string, note: string) {
   if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, branchedProduct), note);
   if (/C=O/.test(smiles)) return exactPrediction(smiles.replace(/C=O/, terminalProduct), note);
   return null;
 }
+function carbonylAcetal(smiles: string) {
+  return carbonylAddition(smiles, "C(OC)(OC)", "C(OC)OC", "Acetal formation replaced the carbonyl oxygen with two methoxy groups as the displayed alcohol partner.");
+}
+function acetalHydrolysis(smiles: string) {
+  if (/C\(OC\)\(OC\)|C\(OC\)OC/.test(smiles)) return exactPrediction(smiles.replace(/C\(OC\)\(OC\)|C\(OC\)OC/, "C(=O)"), "Acetal hydrolysis regenerated the carbonyl compound.");
+  return null;
+}
 function carbonylCondensation(smiles: string, branchedProduct: string, terminalProduct: string, note: string) {
   if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, branchedProduct), note);
   if (/C=O/.test(smiles)) return exactPrediction(smiles.replace(/C=O/, terminalProduct), note);
+  return null;
+}
+function carbonylEnamine(smiles: string) {
+  if (/CC\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/CC\(=O\)/, "C=C(N(C)C)"), "Enamine formation is represented with dimethylamine as the displayed secondary amine.");
+  if (/C\(=O\)C/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)C/, "C(N(C)C)=C"), "Enamine formation is represented with dimethylamine as the displayed secondary amine.");
+  return null;
+}
+function baeyerVilliger(smiles: string) {
+  if (/C\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)/, "C(=O)O"), "Baeyer-Villiger oxidation inserted oxygen next to the ketone carbonyl to form an ester in a simplified representative product.");
+  return null;
+}
+function alphaBromination(smiles: string) {
+  if (/C\(=O\)C/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)C/, "C(=O)CBr"), "Alpha bromination installed bromine on an alpha carbon next to the carbonyl.");
+  if (/CC\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/CC\(=O\)/, "C(Br)C(=O)"), "Alpha bromination installed bromine on an alpha carbon next to the carbonyl.");
+  return null;
+}
+function conjugateAddition(smiles: string) {
+  if (/C=CC\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/C=CC\(=O\)/, "CC(C)C(=O)"), "Organocuprate conjugate addition added a methyl group at the beta carbon of the alpha,beta-unsaturated carbonyl.");
+  return null;
+}
+function aldolAddition(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction("CC(O)CC=O", "Aldol addition is represented with acetaldehyde as the displayed enolate partner, giving a beta-hydroxy carbonyl.");
+}
+function aldolCondensation(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction("CC=CC=O", "Aldol condensation is represented by dehydration of the beta-hydroxy carbonyl to an alpha,beta-unsaturated carbonyl.");
+}
+function intramolecularAldol(smiles: string) {
+  if (!/C\(=O\).+C\(=O\)|C=O.+C=O/.test(smiles)) return null;
+  return exactPrediction("O=C1C=CCCC1", "Intramolecular aldol condensation is represented by a cyclohexenone product.");
+}
+function cannizzaro(smiles: string) {
+  if (!/C=O$/.test(smiles)) return null;
+  return exactPrediction(`${smiles.replace(/C=O$/, "CO")}.${smiles.replace(/C=O$/, "C(=O)[O-]")}`, "Cannizzaro reaction disproportionated a non-enolizable aldehyde into an alcohol and carboxylate.");
+}
+function haloform(smiles: string) {
+  if (!/C\(=O\)C$|CC\(=O\)/.test(smiles)) return null;
+  return exactPrediction("C(=O)[O-].C(Br)(Br)Br", "Haloform reaction of a methyl ketone produced a carboxylate and bromoform in the displayed bromine variant.");
+}
+function alphaMethylation(smiles: string) {
+  if (/C\(=O\)C/.test(smiles)) return exactPrediction(smiles.replace(/C\(=O\)C/, "C(=O)C(C)"), "Enolate alkylation added a methyl group at the alpha carbon.");
+  if (/CC\(=O\)/.test(smiles)) return exactPrediction(smiles.replace(/CC\(=O\)/, "C(C)C(=O)"), "Enolate alkylation added a methyl group at the alpha carbon.");
+  return null;
+}
+function robinsonAnnulation(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction("O=C1C=CCCC1", "Robinson annulation is represented by the cyclohexenone ring product.");
+}
+function reductiveAmination(smiles: string) {
+  if (!/C\(=O\)|C=O/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)/, "C(N)").replace(/C=O/, "CN"), "Reductive amination converted the carbonyl compound into an amine.");
+}
+function esterAminolysis(smiles: string) {
+  if (!/C\(=O\)O[^.]+$/.test(smiles)) return null;
+  return exactPrediction(smiles.replace(/C\(=O\)O[^.]+$/, "C(=O)N"), "Aminolysis converted the ester into an amide. The alcohol coproduct is omitted.");
+}
+function esterAlphaMethylation(smiles: string) {
+  if (/CC\(=O\)O/.test(smiles)) return exactPrediction(smiles.replace(/CC\(=O\)O/, "C(C)C(=O)O"), "Ester enolate alkylation added a methyl group at the alpha carbon.");
+  return null;
+}
+function claisenCondensation(smiles: string) {
+  if (!/C\(=O\)O/.test(smiles)) return null;
+  return exactPrediction("CC(=O)CC(=O)OC", "Claisen condensation is represented by a beta-keto ester product.");
+}
+function dieckmannCondensation(smiles: string) {
+  if (!/C\(=O\)O/.test(smiles)) return null;
+  return exactPrediction("O=C1CCC(=O)OC1", "Dieckmann condensation is represented by a cyclic beta-keto ester.");
+}
+function hofmannElimination(smiles: string) {
+  if (!/N/.test(smiles)) return null;
+  return exactPrediction("C=C", "Hofmann elimination is represented by formation of the least substituted alkene.");
+}
+function methylcyclohexeneE2(smiles: string) {
+  if (/Br.*C1|C1.*Br/.test(smiles)) return exactPrediction("CC1=CCCCC1", "Trans-diaxial E2 elimination in a cyclohexane system formed the cyclohexene product. A representative methylcyclohexene is shown.");
   return null;
 }
 function cyclohexeneAntiBromination(smiles: string) {
