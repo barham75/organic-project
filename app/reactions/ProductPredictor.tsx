@@ -16,11 +16,12 @@ const editorUrl = "/standalone/index.html";
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-hx": markovnikovAlkeneHBr,
   "alkene-hbr-peroxide": radicalAlkeneHBr,
-  "alkene-hydration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Acid-catalyzed hydration placed the alcohol group at the more substituted carbon of the terminal alkene."),
-  "alkene-oxymercuration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Oxymercuration-demercuration produced the Markovnikov alcohol without a carbocation rearrangement."),
-  "alkene-hydroboration": (smiles) => terminalAlkeneAddition(smiles, "terminal", "O", "Hydroboration-oxidation produced the anti-Markovnikov alcohol. The addition is syn when stereochemistry applies."),
-  "alkene-halohydrin": terminalAlkeneHalohydrin,
-  "alkene-hydrogenation": (smiles) => replace(smiles, /C=C/g, "CC", "Catalytic hydrogenation removed the alkene pi bond."),
+  "alkene-hydration": acidCatalyzedAlkeneHydration,
+  "alkene-oxymercuration": oxymercurationAlkene,
+  "alkene-hydroboration": hydroborationAlkene,
+  "alkene-halohydrin": halohydrinAlkene,
+  "alkene-halogenation": halogenationAlkene,
+  "alkene-hydrogenation": hydrogenationAlkene,
   "alkene-ozonolysis": alkeneOzonolysis,
   "alkene-epoxidation": (smiles) => replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship."),
   "alkene-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Syn dihydroxylation added two alcohol groups across the alkene. The drawing shows connectivity; the reaction stereochemistry is syn."),
@@ -258,7 +259,7 @@ function linearCarbonChain(smiles: string) {
   }
   return result;
 }
-type AcyclicAtom = { element: "C" | "Br"; bonds: { atom: number; symbol: string }[] };
+type AcyclicAtom = { element: "C" | "Br" | "O"; bonds: { atom: number; symbol: string }[] };
 type AcyclicGraph = { atoms: AcyclicAtom[] };
 function parseAcyclicCarbonGraph(smiles: string): AcyclicGraph | null {
   if (!/^[C()=#\\/]+$/.test(smiles) || /[0-9]/.test(smiles)) return null;
@@ -309,7 +310,7 @@ function serializeFrom(atomIndex: number, parent: number, graph: AcyclicGraph, v
   const atom = graph.atoms[atomIndex];
   const neighbors = atom.bonds
     .filter((bond) => bond.atom !== parent && !visited.has(bond.atom))
-    .sort((a, b) => Number(graph.atoms[a.atom].element === "Br") - Number(graph.atoms[b.atom].element === "Br"));
+    .sort((a, b) => Number(graph.atoms[a.atom].element !== "C") - Number(graph.atoms[b.atom].element !== "C"));
   const main = neighbors.find((bond) => graph.atoms[bond.atom].element === "C") ?? neighbors[0];
   const branches = neighbors.filter((bond) => bond !== main);
   let text = atom.element;
@@ -375,6 +376,128 @@ function terminalAlkeneHalohydrin(smiles: string) {
   if (/^C=C/.test(smiles)) return exactPrediction(smiles.replace(/^C=C/, "BrCC(O)"), note);
   if (/C=C$/.test(smiles)) return exactPrediction(smiles.replace(/C=C$/, "C(O)CBr"), note);
   return null;
+}
+function acidCatalyzedAlkeneHydration(smiles: string) {
+  return regioselectiveAlkeneAddition(
+    smiles,
+    "O",
+    "more",
+    "Acid-catalyzed hydration placed the alcohol group at the more substituted alkene carbon. Carbocation rearrangements are not modeled.",
+    "Acid-catalyzed hydration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
+  ) ?? methylcycloalkeneAlcohol(smiles, "more", "Acid-catalyzed hydration produced the Markovnikov cycloalkanol.");
+}
+function oxymercurationAlkene(smiles: string) {
+  return regioselectiveAlkeneAddition(
+    smiles,
+    "O",
+    "more",
+    "Oxymercuration-demercuration placed the alcohol group at the more substituted alkene carbon without rearrangement.",
+    "Oxymercuration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
+  ) ?? methylcycloalkeneAlcohol(smiles, "more", "Oxymercuration-demercuration produced the Markovnikov cycloalkanol.");
+}
+function hydroborationAlkene(smiles: string) {
+  return regioselectiveAlkeneAddition(
+    smiles,
+    "O",
+    "less",
+    "Hydroboration-oxidation placed the alcohol group at the less substituted alkene carbon. The addition is syn when stereochemistry applies.",
+    "Hydroboration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
+  ) ?? methylcycloalkeneAlcohol(smiles, "less", "Hydroboration-oxidation produced the anti-Markovnikov cycloalkanol.");
+}
+function halogenationAlkene(smiles: string) {
+  const product = alkeneAdditionProduct(smiles, "both", "Br", "Br");
+  return product ? exactPrediction(product, "Bromination added bromine atoms to both alkene carbons. The drawing shows connectivity; the reaction is anti when stereochemistry is represented.") : null;
+}
+function halohydrinAlkene(smiles: string) {
+  return halohydrinAcyclic(smiles) ?? methylcycloalkeneHalohydrin(smiles);
+}
+function hydrogenationAlkene(smiles: string) {
+  const product = alkeneAdditionProduct(smiles, "none");
+  return product ? exactPrediction(product, "Catalytic hydrogenation removed the alkene pi bond while preserving the carbon framework.") : methylcycloalkeneHydrogenation(smiles);
+}
+function regioselectiveAlkeneAddition(smiles: string, group: "O" | "Br", target: "more" | "less", note: string, mixtureNote: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const doubleBond = firstDoubleBond(graph);
+  if (!graph || !doubleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, doubleBond.left, doubleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, doubleBond.right, doubleBond.left);
+  if (leftSubstitution === rightSubstitution) {
+    const leftProduct = substitutedAlkeneAdditionProduct(graph, doubleBond.left, doubleBond.right, group);
+    const rightProduct = substitutedAlkeneAdditionProduct(graph, doubleBond.right, doubleBond.left, group);
+    if (!leftProduct || !rightProduct || leftProduct === rightProduct) return null;
+    return exactPrediction(`${leftProduct}.${rightProduct}`, mixtureNote);
+  }
+  const selected = target === "more"
+    ? (leftSubstitution > rightSubstitution ? doubleBond.left : doubleBond.right)
+    : (leftSubstitution < rightSubstitution ? doubleBond.left : doubleBond.right);
+  const product = substitutedAlkeneAdditionProduct(graph, selected, selected === doubleBond.left ? doubleBond.right : doubleBond.left, group);
+  return product ? exactPrediction(product, note) : null;
+}
+function halohydrinAcyclic(smiles: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const doubleBond = firstDoubleBond(graph);
+  if (!graph || !doubleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, doubleBond.left, doubleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, doubleBond.right, doubleBond.left);
+  if (leftSubstitution === rightSubstitution) {
+    const leftProduct = disubstitutedAlkeneAdditionProduct(graph, doubleBond.left, doubleBond.right, "O", "Br");
+    const rightProduct = disubstitutedAlkeneAdditionProduct(graph, doubleBond.right, doubleBond.left, "O", "Br");
+    if (!leftProduct || !rightProduct || leftProduct === rightProduct) return null;
+    return exactPrediction(`${leftProduct}.${rightProduct}`, "Halohydrin formation can give regioisomeric products for this alkene, so both connectivity products are shown. The addition is anti.");
+  }
+  const oxygenated = leftSubstitution > rightSubstitution ? doubleBond.left : doubleBond.right;
+  const brominated = oxygenated === doubleBond.left ? doubleBond.right : doubleBond.left;
+  const product = disubstitutedAlkeneAdditionProduct(graph, oxygenated, brominated, "O", "Br");
+  return product ? exactPrediction(product, "Halohydrin formation placed OH on the more substituted alkene carbon and Br on the less substituted carbon. The addition is anti.") : null;
+}
+function firstDoubleBond(graph: AcyclicGraph | null) {
+  return graph?.atoms.flatMap((atom, atomIndex) =>
+    atom.bonds
+      .filter((bond) => bond.symbol === "=" && atomIndex < bond.atom)
+      .map((bond) => ({ left: atomIndex, right: bond.atom })),
+  )[0] ?? null;
+}
+function alkeneAdditionProduct(smiles: string, mode: "none" | "both", leftGroup?: "O" | "Br", rightGroup?: "O" | "Br") {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const doubleBond = firstDoubleBond(graph);
+  if (!graph || !doubleBond) return null;
+  if (mode === "none") return saturatedAlkeneProduct(graph, doubleBond.left, doubleBond.right);
+  if (!leftGroup || !rightGroup) return null;
+  return disubstitutedAlkeneAdditionProduct(graph, doubleBond.left, doubleBond.right, leftGroup, rightGroup);
+}
+function saturatedAlkeneProduct(graph: AcyclicGraph, left: number, right: number) {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[left].bonds.find((item) => item.atom === right);
+  const reverseBond = copy.atoms[right].bonds.find((item) => item.atom === left);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  return serializeAcyclicGraph(copy);
+}
+function substitutedAlkeneAdditionProduct(graph: AcyclicGraph, substituted: number, partner: number, group: "O" | "Br") {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[substituted].bonds.find((item) => item.atom === partner);
+  const reverseBond = copy.atoms[partner].bonds.find((item) => item.atom === substituted);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  addAtom(copy, substituted, group);
+  return serializeAcyclicGraph(copy);
+}
+function disubstitutedAlkeneAdditionProduct(graph: AcyclicGraph, left: number, right: number, leftGroup: "O" | "Br", rightGroup: "O" | "Br") {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[left].bonds.find((item) => item.atom === right);
+  const reverseBond = copy.atoms[right].bonds.find((item) => item.atom === left);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  addAtom(copy, left, leftGroup);
+  addAtom(copy, right, rightGroup);
+  return serializeAcyclicGraph(copy);
+}
+function addAtom(graph: AcyclicGraph, target: number, element: "O" | "Br") {
+  const next = graph.atoms.push({ element, bonds: [{ atom: target, symbol: "" }] }) - 1;
+  graph.atoms[target].bonds.push({ atom: next, symbol: "" });
 }
 function markovnikovAlkeneHBr(smiles: string) {
   const cyclic = methylcyclohexeneHBr(smiles);
@@ -452,6 +575,35 @@ function methylcyclohexeneHBr(smiles: string) {
   ) {
     return exactPrediction("CC1(Br)CCCCC1", "HBr addition to 1-methylcyclohexene followed Markovnikov regiochemistry and produced 1-bromo-1-methylcyclohexane.");
   }
+  return null;
+}
+function methylcycloalkeneAlcohol(smiles: string, position: "more" | "less", note: string) {
+  const size = methylcycloalkeneRingSize(smiles);
+  if (!size) return null;
+  if (size === 5) return exactPrediction(position === "more" ? "CC1(O)CCCC1" : "CC1CCCC(O)1", note);
+  if (size === 6) return exactPrediction(position === "more" ? "CC1(O)CCCCC1" : "CC1CCCCC(O)1", note);
+  return null;
+}
+function methylcycloalkeneHalohydrin(smiles: string) {
+  const size = methylcycloalkeneRingSize(smiles);
+  if (!size) return null;
+  if (size === 5) return exactPrediction("CC1(O)CCCC(Br)1", "Halohydrin formation placed OH on the methyl-substituted alkene carbon and Br on the adjacent alkene carbon. The addition is anti.");
+  if (size === 6) return exactPrediction("CC1(O)CCCCC(Br)1", "Halohydrin formation placed OH on the methyl-substituted alkene carbon and Br on the adjacent alkene carbon. The addition is anti.");
+  return null;
+}
+function methylcycloalkeneHydrogenation(smiles: string) {
+  const size = methylcycloalkeneRingSize(smiles);
+  if (!size) return null;
+  if (size === 5) return exactPrediction("CC1CCCC1", "Catalytic hydrogenation removed the ring alkene pi bond and produced methylcyclopentane.");
+  if (size === 6) return exactPrediction("CC1CCCCC1", "Catalytic hydrogenation removed the ring alkene pi bond and produced methylcyclohexane.");
+  return null;
+}
+function methylcycloalkeneRingSize(smiles: string) {
+  const compact = smiles.replace(/[\\/]/g, "");
+  const methylcyclopentenes = new Set(["C1C(C)=CCC1", "C1CC=C(C)C1", "C1CCC(C)=C1", "CC1=CCCC1"]);
+  const methylcyclohexenes = new Set(["C1C(C)=CCCC1", "C1CC=C(C)CC1", "C1CCC(C)=CC1", "C1CCCC(C)=C1", "CC1=CCCCC1"]);
+  if (methylcyclopentenes.has(compact)) return 5;
+  if (methylcyclohexenes.has(compact)) return 6;
   return null;
 }
 function alkeneOzonolysis(smiles: string) {
