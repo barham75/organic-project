@@ -26,16 +26,18 @@ const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-epoxidation": (smiles) => replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship."),
   "alkene-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Syn dihydroxylation added two alcohol groups across the alkene. The drawing shows connectivity; the reaction stereochemistry is syn."),
   "alkene-anti-dihydroxylation": (smiles) => replace(smiles, /C=C/, "C(O)C(O)", "Epoxidation followed by hydrolysis added two alcohol groups across the alkene. The drawing shows connectivity; the overall addition is anti."),
-  "alkyne-hydrogenation": (smiles) => replace(smiles, /C#C/g, "CC", "Complete hydrogenation removed the alkyne pi bonds."),
+  "alkyne-hydrogenation": completeAlkyneHydrogenation,
   "alkyne-lindlar": (smiles) => partialAlkyneReduction(smiles, "cis", "Lindlar reduction produced the cis (Z) alkene when E/Z stereochemistry applies."),
   "alkyne-na-nh3": (smiles) => partialAlkyneReduction(smiles, "trans", "Dissolving-metal reduction produced the trans (E) alkene when E/Z stereochemistry applies."),
   "alkyne-hydration": terminalAlkyneHydration,
   "alkyne-hydroboration": terminalAlkyneHydroboration,
   "alkyne-hx": (smiles) => terminalAlkyneHydrohalogenation(smiles, false),
-  "alkyne-halogenation": (smiles) => replace(smiles, /C#C/, "C(Br)=C(Br)", "One equivalent of bromine converted the alkyne into a dibromoalkene."),
+  "alkyne-halogenation": oneEquivalentAlkyneHalogenation,
+  "alkyne-acetylide": terminalAlkyneAlkylation,
   "alkyne-hx-two-equivalents": (smiles) => terminalAlkyneHydrohalogenation(smiles, true),
-  "alkyne-halogenation-two-equivalents": (smiles) => replace(smiles, /C#C/, "C(Br)(Br)C(Br)(Br)", "Two equivalents of bromine converted the alkyne into a tetrabromoalkane."),
+  "alkyne-halogenation-two-equivalents": twoEquivalentAlkyneHalogenation,
   "alkyne-oxidative-cleavage": internalAlkyneOxidativeCleavage,
+  "alkyne-internal-hydration": internalAlkyneHydration,
   "halide-nitrile-formation": (smiles) => terminalHalideReplacement(smiles, "C#N", "Cyanide displaced the terminal halide by an SN2 reaction and added one carbon atom to the chain."),
   "amine-gabriel-synthesis": (smiles) => terminalHalideReplacement(smiles, "N", "Gabriel synthesis converted the terminal primary alkyl halide into a primary amine."),
   "alcohol-pbr3": (smiles) => terminalAlcohol(smiles, "Br", "PBr3 replaced the alcohol group with bromine."),
@@ -457,6 +459,13 @@ function firstDoubleBond(graph: AcyclicGraph | null) {
       .map((bond) => ({ left: atomIndex, right: bond.atom })),
   )[0] ?? null;
 }
+function firstTripleBond(graph: AcyclicGraph | null) {
+  return graph?.atoms.flatMap((atom, atomIndex) =>
+    atom.bonds
+      .filter((bond) => bond.symbol === "#" && atomIndex < bond.atom)
+      .map((bond) => ({ left: atomIndex, right: bond.atom })),
+  )[0] ?? null;
+}
 function alkeneAdditionProduct(smiles: string, mode: "none" | "both", leftGroup?: "O" | "Br", rightGroup?: "O" | "Br") {
   const graph = parseAcyclicCarbonGraph(smiles);
   const doubleBond = firstDoubleBond(graph);
@@ -498,6 +507,11 @@ function disubstitutedAlkeneAdditionProduct(graph: AcyclicGraph, left: number, r
 function addAtom(graph: AcyclicGraph, target: number, element: "O" | "Br") {
   const next = graph.atoms.push({ element, bonds: [{ atom: target, symbol: "" }] }) - 1;
   graph.atoms[target].bonds.push({ atom: next, symbol: "" });
+}
+function addBondedAtom(graph: AcyclicGraph, target: number, element: "C" | "O" | "Br", symbol = "") {
+  const next = graph.atoms.push({ element, bonds: [{ atom: target, symbol }] }) - 1;
+  graph.atoms[target].bonds.push({ atom: next, symbol });
+  return next;
 }
 function markovnikovAlkeneHBr(smiles: string) {
   const cyclic = methylcyclohexeneHBr(smiles);
@@ -611,25 +625,152 @@ function alkeneOzonolysis(smiles: string) {
   return exactPrediction(smiles.replace(/C=C/, "C=O.O=C"), "Reductive ozonolysis cleaved the alkene and produced the corresponding aldehyde or ketone fragments.");
 }
 function terminalAlkyneHydration(smiles: string) {
-  const note = "Mercury-catalyzed hydration of the terminal alkyne produced a methyl ketone after enol-keto tautomerization.";
-  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, "CC(=O)"), note);
-  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, "C(=O)C"), note);
-  return null;
+  return alkyneCarbonylProduct(
+    smiles,
+    "markovnikov",
+    "Mercury-catalyzed hydration produced the ketone after enol-keto tautomerization.",
+    "Internal alkyne hydration can give regioisomeric ketones, so both connectivity products are shown.",
+  );
 }
 function terminalAlkyneHydroboration(smiles: string) {
-  const note = "Hydroboration-oxidation of the terminal alkyne produced an aldehyde after tautomerization.";
-  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, "O=CC"), note);
-  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, "CC=O"), note);
-  return null;
+  return alkyneCarbonylProduct(
+    smiles,
+    "antiMarkovnikov",
+    "Hydroboration-oxidation produced the carbonyl compound after enol tautomerization. A terminal alkyne gives an aldehyde.",
+    "This substrate is an internal alkyne; hydroboration-oxidation can give regioisomeric ketones, so both connectivity products are shown.",
+  );
 }
 function terminalAlkyneHydrohalogenation(smiles: string, twoEquivalents: boolean) {
-  const note = twoEquivalents
-    ? "Two equivalents of HBr added to the terminal alkyne and produced a geminal dibromide."
-    : "One equivalent of HBr added to the terminal alkyne and produced a Markovnikov vinyl bromide.";
-  const replacement = twoEquivalents ? "C(Br)(Br)C" : "C(Br)=C";
-  if (/^C#C/.test(smiles)) return exactPrediction(smiles.replace(/^C#C/, twoEquivalents ? "CC(Br)(Br)" : "C=C(Br)"), note);
-  if (/C#C$/.test(smiles)) return exactPrediction(smiles.replace(/C#C$/, replacement), note);
-  return null;
+  return alkyneHydrohalogenationProduct(smiles, twoEquivalents);
+}
+function internalAlkyneHydration(smiles: string) {
+  return alkyneCarbonylProduct(
+    smiles,
+    "internalMixture",
+    "Hydration of the internal alkyne produced the ketone after enol-keto tautomerization.",
+    "Unsymmetrical internal alkyne hydration can give regioisomeric ketones, so both connectivity products are shown.",
+  );
+}
+function completeAlkyneHydrogenation(smiles: string) {
+  const product = alkyneBondProduct(smiles, "");
+  return product ? exactPrediction(product, "Complete hydrogenation converted the alkyne into the corresponding alkane.") : null;
+}
+function oneEquivalentAlkyneHalogenation(smiles: string) {
+  const product = alkyneVicinalHalogenationProduct(smiles, false);
+  return product ? exactPrediction(product, "One equivalent of bromine converted the alkyne into a dibromoalkene. The drawing shows connectivity.") : null;
+}
+function twoEquivalentAlkyneHalogenation(smiles: string) {
+  const product = alkyneVicinalHalogenationProduct(smiles, true);
+  return product ? exactPrediction(product, "Two equivalents of bromine converted the alkyne into a tetrabromoalkane.") : null;
+}
+function terminalAlkyneAlkylation(smiles: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const tripleBond = firstTripleBond(graph);
+  if (!graph || !tripleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, tripleBond.left, tripleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, tripleBond.right, tripleBond.left);
+  const terminal = leftSubstitution === 0 ? tripleBond.left : rightSubstitution === 0 ? tripleBond.right : null;
+  if (terminal === null) return null;
+  const copy = cloneAcyclicGraph(graph);
+  addBondedAtom(copy, terminal, "C");
+  return exactPrediction(serializeAcyclicGraph(copy), "Acetylide alkylation formed a new carbon-carbon bond at the terminal alkyne carbon. The reagent fragment is represented as a methyl group in the generated product.");
+}
+function alkyneCarbonylProduct(smiles: string, regiochemistry: "markovnikov" | "antiMarkovnikov" | "internalMixture", note: string, mixtureNote: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const tripleBond = firstTripleBond(graph);
+  if (!graph || !tripleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, tripleBond.left, tripleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, tripleBond.right, tripleBond.left);
+  if (leftSubstitution > 0 && rightSubstitution > 0) {
+    const leftProduct = alkyneKetoneAt(graph, tripleBond.left, tripleBond.right);
+    const rightProduct = alkyneKetoneAt(graph, tripleBond.right, tripleBond.left);
+    if (!leftProduct || !rightProduct) return null;
+    if (leftProduct === rightProduct) return exactPrediction(leftProduct, note);
+    return exactPrediction(`${leftProduct}.${rightProduct}`, mixtureNote);
+  }
+  const terminal = leftSubstitution === 0 ? tripleBond.left : rightSubstitution === 0 ? tripleBond.right : null;
+  const internal = terminal === tripleBond.left ? tripleBond.right : terminal === tripleBond.right ? tripleBond.left : null;
+  if (terminal === null || internal === null) return null;
+  const carbonyl = regiochemistry === "antiMarkovnikov" ? terminal : internal;
+  const partner = carbonyl === tripleBond.left ? tripleBond.right : tripleBond.left;
+  const product = alkyneKetoneAt(graph, carbonyl, partner);
+  return product ? exactPrediction(product, note) : null;
+}
+function alkyneKetoneAt(graph: AcyclicGraph, carbonyl: number, partner: number) {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[carbonyl].bonds.find((item) => item.atom === partner);
+  const reverseBond = copy.atoms[partner].bonds.find((item) => item.atom === carbonyl);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  addBondedAtom(copy, carbonyl, "O", "=");
+  return serializeAcyclicGraph(copy);
+}
+function alkyneHydrohalogenationProduct(smiles: string, twoEquivalents: boolean) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const tripleBond = firstTripleBond(graph);
+  if (!graph || !tripleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, tripleBond.left, tripleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, tripleBond.right, tripleBond.left);
+  const products: string[] = [];
+  if (leftSubstitution > 0 && rightSubstitution > 0) {
+    for (const target of [tripleBond.left, tripleBond.right]) {
+      const partner = target === tripleBond.left ? tripleBond.right : tripleBond.left;
+      const product = alkyneBromideAt(graph, target, partner, twoEquivalents);
+      if (product && !products.includes(product)) products.push(product);
+    }
+    if (!products.length) return null;
+    return exactPrediction(products.join("."), twoEquivalents
+      ? "Two equivalents of HBr gave geminal dibromide regioisomers from this internal alkyne."
+      : "One equivalent of HBr gave vinyl bromide regioisomers from this internal alkyne.");
+  }
+  const brominated = leftSubstitution >= rightSubstitution ? tripleBond.left : tripleBond.right;
+  const partner = brominated === tripleBond.left ? tripleBond.right : tripleBond.left;
+  const product = alkyneBromideAt(graph, brominated, partner, twoEquivalents);
+  return product ? exactPrediction(product, twoEquivalents
+    ? "Two equivalents of HBr added Markovnikov to give a geminal dibromide."
+    : "One equivalent of HBr added Markovnikov to give a vinyl bromide.") : null;
+}
+function alkyneBromideAt(graph: AcyclicGraph, brominated: number, partner: number, twoEquivalents: boolean) {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[brominated].bonds.find((item) => item.atom === partner);
+  const reverseBond = copy.atoms[partner].bonds.find((item) => item.atom === brominated);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = twoEquivalents ? "" : "=";
+  reverseBond.symbol = twoEquivalents ? "" : "=";
+  addAtom(copy, brominated, "Br");
+  if (twoEquivalents) addAtom(copy, brominated, "Br");
+  return serializeAcyclicGraph(copy);
+}
+function alkyneVicinalHalogenationProduct(smiles: string, twoEquivalents: boolean) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const tripleBond = firstTripleBond(graph);
+  if (!graph || !tripleBond) return null;
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[tripleBond.left].bonds.find((item) => item.atom === tripleBond.right);
+  const reverseBond = copy.atoms[tripleBond.right].bonds.find((item) => item.atom === tripleBond.left);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = twoEquivalents ? "" : "=";
+  reverseBond.symbol = twoEquivalents ? "" : "=";
+  addAtom(copy, tripleBond.left, "Br");
+  addAtom(copy, tripleBond.right, "Br");
+  if (twoEquivalents) {
+    addAtom(copy, tripleBond.left, "Br");
+    addAtom(copy, tripleBond.right, "Br");
+  }
+  return serializeAcyclicGraph(copy);
+}
+function alkyneBondProduct(smiles: string, bondSymbol: "" | "=") {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  const tripleBond = firstTripleBond(graph);
+  if (!graph || !tripleBond) return null;
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[tripleBond.left].bonds.find((item) => item.atom === tripleBond.right);
+  const reverseBond = copy.atoms[tripleBond.right].bonds.find((item) => item.atom === tripleBond.left);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = bondSymbol;
+  reverseBond.symbol = bondSymbol;
+  return serializeAcyclicGraph(copy);
 }
 function internalAlkyneOxidativeCleavage(smiles: string) {
   if (!/C#C/.test(smiles) || /^C#C|C#C$/.test(smiles)) return null;
