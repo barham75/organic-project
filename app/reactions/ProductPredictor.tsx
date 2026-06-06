@@ -15,7 +15,7 @@ const editorUrl = "/standalone/index.html";
 
 const transformations: Record<string, (smiles: string) => Prediction | null> = {
   "alkene-hx": markovnikovAlkeneHBr,
-  "alkene-hbr-peroxide": (smiles) => terminalAlkeneAddition(smiles, "terminal", "Br", "Radical addition of HBr placed bromine at the less substituted end of the terminal alkene."),
+  "alkene-hbr-peroxide": radicalAlkeneHBr,
   "alkene-hydration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Acid-catalyzed hydration placed the alcohol group at the more substituted carbon of the terminal alkene."),
   "alkene-oxymercuration": (smiles) => terminalAlkeneAddition(smiles, "internal", "O", "Oxymercuration-demercuration produced the Markovnikov alcohol without a carbocation rearrangement."),
   "alkene-hydroboration": (smiles) => terminalAlkeneAddition(smiles, "terminal", "O", "Hydroboration-oxidation produced the anti-Markovnikov alcohol. The addition is syn when stereochemistry applies."),
@@ -399,6 +399,42 @@ function markovnikovAlkeneHBr(smiles: string) {
   const bromine = graph.atoms.push({ element: "Br", bonds: [{ atom: brominated, symbol: "" }] }) - 1;
   graph.atoms[brominated].bonds.push({ atom: bromine, symbol: "" });
   return exactPrediction(serializeAcyclicGraph(graph), "HBr addition followed Markovnikov regiochemistry: bromine was placed on the more substituted alkene carbon. The reaction card uses HBr as the displayed HX example.");
+}
+function radicalAlkeneHBr(smiles: string) {
+  const graph = parseAcyclicCarbonGraph(smiles);
+  if (!graph) return null;
+  const doubleBond = graph.atoms.flatMap((atom, atomIndex) =>
+    atom.bonds
+      .filter((bond) => bond.symbol === "=" && atomIndex < bond.atom)
+      .map((bond) => ({ left: atomIndex, right: bond.atom })),
+  )[0];
+  if (!doubleBond) return null;
+  const leftSubstitution = carbonSubstitution(graph, doubleBond.left, doubleBond.right);
+  const rightSubstitution = carbonSubstitution(graph, doubleBond.right, doubleBond.left);
+  if (leftSubstitution === rightSubstitution) {
+    const leftProduct = brominatedAlkeneAdditionProduct(graph, doubleBond.left, doubleBond.right);
+    const rightProduct = brominatedAlkeneAdditionProduct(graph, doubleBond.right, doubleBond.left);
+    if (!leftProduct || !rightProduct || leftProduct === rightProduct) return null;
+    return exactPrediction(`${leftProduct}.${rightProduct}`, "Radical HBr addition is not strongly regioselective for this internal alkene, so both bromoalkane regioisomers are shown.");
+  }
+  const brominated = leftSubstitution < rightSubstitution ? doubleBond.left : doubleBond.right;
+  const product = brominatedAlkeneAdditionProduct(graph, brominated, brominated === doubleBond.left ? doubleBond.right : doubleBond.left);
+  if (!product) return null;
+  return exactPrediction(product, "Radical HBr addition followed anti-Markovnikov regiochemistry: bromine was placed on the less substituted alkene carbon.");
+}
+function brominatedAlkeneAdditionProduct(graph: AcyclicGraph, brominated: number, partner: number) {
+  const copy = cloneAcyclicGraph(graph);
+  const bond = copy.atoms[brominated].bonds.find((item) => item.atom === partner);
+  const reverseBond = copy.atoms[partner].bonds.find((item) => item.atom === brominated);
+  if (!bond || !reverseBond) return null;
+  bond.symbol = "";
+  reverseBond.symbol = "";
+  const bromine = copy.atoms.push({ element: "Br", bonds: [{ atom: brominated, symbol: "" }] }) - 1;
+  copy.atoms[brominated].bonds.push({ atom: bromine, symbol: "" });
+  return serializeAcyclicGraph(copy);
+}
+function cloneAcyclicGraph(graph: AcyclicGraph): AcyclicGraph {
+  return { atoms: graph.atoms.map((atom) => ({ element: atom.element, bonds: atom.bonds.map((bond) => ({ ...bond })) })) };
 }
 function methylcyclohexeneHBr(smiles: string) {
   const compact = smiles.replace(/[\\/]/g, "");
