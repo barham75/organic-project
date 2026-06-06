@@ -579,7 +579,7 @@ function acidCatalyzedAlkeneHydration(smiles: string) {
     "more",
     "Acid-catalyzed hydration placed the alcohol group at the more substituted alkene carbon. Carbocation rearrangements are not modeled.",
     "Acid-catalyzed hydration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
-  ) ?? methylcycloalkeneAlcohol(smiles, "more", "Acid-catalyzed hydration produced the Markovnikov cycloalkanol.");
+  ) ?? cycloalkeneAlcohol(smiles, "more", "Acid-catalyzed hydration produced the Markovnikov cycloalkanol.");
 }
 function oxymercurationAlkene(smiles: string) {
   return branchedTerminalAlkeneAlcohol(smiles, "more") ?? regioselectiveAlkeneAddition(
@@ -588,7 +588,7 @@ function oxymercurationAlkene(smiles: string) {
     "more",
     "Oxymercuration-demercuration placed the alcohol group at the more substituted alkene carbon without rearrangement.",
     "Oxymercuration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
-  ) ?? methylcycloalkeneAlcohol(smiles, "more", "Oxymercuration-demercuration produced the Markovnikov cycloalkanol.");
+  ) ?? cycloalkeneAlcohol(smiles, "more", "Oxymercuration-demercuration produced the Markovnikov cycloalkanol.");
 }
 function hydroborationAlkene(smiles: string) {
   return branchedTerminalAlkeneAlcohol(smiles, "less") ?? regioselectiveAlkeneAddition(
@@ -597,16 +597,20 @@ function hydroborationAlkene(smiles: string) {
     "less",
     "Hydroboration-oxidation placed the alcohol group at the less substituted alkene carbon. The addition is syn when stereochemistry applies.",
     "Hydroboration can give regioisomeric alcohols for this alkene, so both connectivity products are shown.",
-  ) ?? methylcycloalkeneAlcohol(smiles, "less", "Hydroboration-oxidation produced the anti-Markovnikov cycloalkanol.");
+  ) ?? cycloalkeneAlcohol(smiles, "less", "Hydroboration-oxidation produced the anti-Markovnikov cycloalkanol.");
 }
 function alkeneEpoxidation(smiles: string) {
   const branched = branchedTerminalAlkeneEpoxide(smiles);
   if (branched) return branched;
+  const cyclic = cycloalkeneEpoxidation(smiles);
+  if (cyclic) return cyclic;
   return replace(smiles, /C=C/, "C1OC1", "Peroxyacid epoxidation converted the alkene into an epoxide while preserving the alkene substituent relationship.");
 }
 function alkeneDihydroxylation(smiles: string) {
   const product = alkeneAdditionProduct(smiles, "both", "O", "O");
   if (product) return exactPrediction(product, "Dihydroxylation added OH to both alkene carbons. The drawing shows connectivity; syn or anti stereochemistry depends on the selected reaction card.");
+  const cyclic = cycloalkeneDihydroxylation(smiles);
+  if (cyclic) return cyclic;
   return replace(smiles, /C=C/, "C(O)C(O)", "Dihydroxylation added two alcohol groups across the alkene.");
 }
 function alkeneCyclopropanation(smiles: string) {
@@ -664,14 +668,14 @@ function branchedTerminalAlkeneEpoxide(smiles: string) {
 }
 function halogenationAlkene(smiles: string) {
   const product = alkeneAdditionProduct(smiles, "both", "Br", "Br");
-  return product ? exactPrediction(product, "Bromination added bromine atoms to both alkene carbons. The drawing shows connectivity; the reaction is anti when stereochemistry is represented.") : null;
+  return product ? exactPrediction(product, "Bromination added bromine atoms to both alkene carbons. The drawing shows connectivity; the reaction is anti when stereochemistry is represented.") : cycloalkeneDibromination(smiles);
 }
 function halohydrinAlkene(smiles: string) {
-  return halohydrinAcyclic(smiles) ?? methylcycloalkeneHalohydrin(smiles);
+  return halohydrinAcyclic(smiles) ?? cycloalkeneHalohydrin(smiles);
 }
 function hydrogenationAlkene(smiles: string) {
   const product = alkeneAdditionProduct(smiles, "none");
-  return product ? exactPrediction(product, "Catalytic hydrogenation removed the alkene pi bond while preserving the carbon framework.") : methylcycloalkeneHydrogenation(smiles);
+  return product ? exactPrediction(product, "Catalytic hydrogenation removed the alkene pi bond while preserving the carbon framework.") : cycloalkeneHydrogenation(smiles);
 }
 function regioselectiveAlkeneAddition(smiles: string, group: "O" | "Br", target: "more" | "less", note: string, mixtureNote: string) {
   const graph = parseAcyclicCarbonGraph(smiles);
@@ -770,7 +774,7 @@ function addBondedAtom(graph: AcyclicGraph, target: number, element: "C" | "O" |
   return next;
 }
 function markovnikovAlkeneHBr(smiles: string) {
-  const cyclic = methylcyclohexeneHBr(smiles);
+  const cyclic = cycloalkeneHBr(smiles) ?? methylcyclohexeneHBr(smiles);
   if (cyclic) return cyclic;
   const graph = parseAcyclicCarbonGraph(smiles);
   if (!graph) return null;
@@ -794,6 +798,8 @@ function markovnikovAlkeneHBr(smiles: string) {
   return exactPrediction(serializeAcyclicGraph(graph), "HBr addition followed Markovnikov regiochemistry: bromine was placed on the more substituted alkene carbon. The reaction card uses HBr as the displayed HX example.");
 }
 function radicalAlkeneHBr(smiles: string) {
+  const cyclic = cycloalkeneHBr(smiles);
+  if (cyclic) return exactPrediction(cyclic.product, "Radical HBr addition to this cycloalkene is represented by the corresponding bromocycloalkane. Regiochemical differences require explicit substituent analysis.");
   const graph = parseAcyclicCarbonGraph(smiles);
   if (!graph) return null;
   const doubleBond = graph.atoms.flatMap((atom, atomIndex) =>
@@ -848,34 +854,80 @@ function methylcyclohexeneHBr(smiles: string) {
   }
   return null;
 }
+function simpleCycloalkene(smiles: string) {
+  const compact = smiles.replace(/[\\/]/g, "");
+  if (!/^C[()C=1]+$/.test(compact) || (compact.match(/1/g) ?? []).length !== 2 || !compact.includes("=")) return null;
+  const ringSkeleton = compact.replace(/\(C\)/g, "").replace(/^C(?=C1=|C1=)/, "");
+  const ringSize = (ringSkeleton.match(/C/g) ?? []).length;
+  if (ringSize < 3 || ringSize > 10) return null;
+  return { size: ringSize, methyl: compact.includes("(C)") || /^CC1=|^CC1C*=/.test(compact) };
+}
+function ringAlkane(size: number) {
+  return `C1${"C".repeat(size - 1)}1`;
+}
+function ringMonoProduct(size: number, substituent: "O" | "Br", methyl = false) {
+  const group = substituent === "O" ? "O" : "Br";
+  return methyl ? `CC1(${group})${"C".repeat(size - 1)}1` : `${group}C1${"C".repeat(size - 1)}1`;
+}
+function ringAdjacentProduct(size: number, left: "O" | "Br", right: "O" | "Br", methyl = false) {
+  const prefix = methyl ? `CC1(${left})` : `${left}C1`;
+  return `${prefix}C(${right})${"C".repeat(Math.max(1, size - 2))}1`;
+}
+function cycloalkeneHBr(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  return exactPrediction(ringMonoProduct(ring.size, "Br", ring.methyl), ring.methyl
+    ? "HBr addition to the methyl-substituted cycloalkene followed Markovnikov regiochemistry."
+    : "HBr addition to the cycloalkene produced the corresponding bromocycloalkane.");
+}
+function cycloalkeneAlcohol(smiles: string, position: "more" | "less", note: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  if (!ring.methyl) return exactPrediction(ringMonoProduct(ring.size, "O"), note);
+  if (position === "more") return exactPrediction(ringMonoProduct(ring.size, "O", true), note);
+  return exactPrediction(`CC1C(O)${"C".repeat(Math.max(1, ring.size - 2))}1`, note);
+}
+function cycloalkeneDibromination(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  return exactPrediction(ringAdjacentProduct(ring.size, "Br", "Br", ring.methyl), "Bromination added bromine atoms to the adjacent alkene carbons of the cycloalkene. The drawing shows connectivity; anti stereochemistry may apply.");
+}
+function cycloalkeneHalohydrin(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  return exactPrediction(ringAdjacentProduct(ring.size, "O", "Br", ring.methyl), ring.methyl
+    ? "Halohydrin formation placed OH on the more substituted alkene carbon and Br on the adjacent carbon. The addition is anti when stereochemistry is represented."
+    : "Halohydrin formation added OH and Br across the cycloalkene. The addition is anti when stereochemistry is represented.");
+}
+function cycloalkeneDihydroxylation(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  return exactPrediction(ringAdjacentProduct(ring.size, "O", "O", ring.methyl), "Dihydroxylation added OH groups to adjacent alkene carbons of the cycloalkene. The selected reaction controls syn versus anti stereochemistry.");
+}
+function cycloalkeneEpoxidation(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  if (ring.size === 3) return exactPrediction(ring.methyl ? "CC12COC12" : "C12COC12", "Peroxyacid epoxidation converted the cycloalkene into the corresponding epoxide. The drawing is a compact fused-ring representation.");
+  return exactPrediction(ring.methyl ? `CC1C2OC2${"C".repeat(Math.max(1, ring.size - 2))}1` : `C1C2OC2${"C".repeat(Math.max(1, ring.size - 2))}1`, "Peroxyacid epoxidation converted the cycloalkene into the corresponding epoxide. The drawing is a compact fused-ring representation.");
+}
+function cycloalkeneHydrogenation(smiles: string) {
+  const ring = simpleCycloalkene(smiles);
+  if (!ring) return null;
+  return exactPrediction(ring.methyl ? `CC1${"C".repeat(ring.size - 1)}1` : ringAlkane(ring.size), "Catalytic hydrogenation removed the ring alkene pi bond while preserving the ring size.");
+}
 function methylcycloalkeneAlcohol(smiles: string, position: "more" | "less", note: string) {
-  const size = methylcycloalkeneRingSize(smiles);
-  if (!size) return null;
-  if (size === 5) return exactPrediction(position === "more" ? "CC1(O)CCCC1" : "CC1CCCC(O)1", note);
-  if (size === 6) return exactPrediction(position === "more" ? "CC1(O)CCCCC1" : "CC1CCCCC(O)1", note);
+  const product = cycloalkeneAlcohol(smiles, position, note);
+  if (product) return product;
   return null;
 }
 function methylcycloalkeneHalohydrin(smiles: string) {
-  const size = methylcycloalkeneRingSize(smiles);
-  if (!size) return null;
-  if (size === 5) return exactPrediction("CC1(O)CCCC(Br)1", "Halohydrin formation placed OH on the methyl-substituted alkene carbon and Br on the adjacent alkene carbon. The addition is anti.");
-  if (size === 6) return exactPrediction("CC1(O)CCCCC(Br)1", "Halohydrin formation placed OH on the methyl-substituted alkene carbon and Br on the adjacent alkene carbon. The addition is anti.");
-  return null;
+  return cycloalkeneHalohydrin(smiles);
 }
 function methylcycloalkeneHydrogenation(smiles: string) {
-  const size = methylcycloalkeneRingSize(smiles);
-  if (!size) return null;
-  if (size === 5) return exactPrediction("CC1CCCC1", "Catalytic hydrogenation removed the ring alkene pi bond and produced methylcyclopentane.");
-  if (size === 6) return exactPrediction("CC1CCCCC1", "Catalytic hydrogenation removed the ring alkene pi bond and produced methylcyclohexane.");
-  return null;
+  return cycloalkeneHydrogenation(smiles);
 }
 function methylcycloalkeneRingSize(smiles: string) {
-  const compact = smiles.replace(/[\\/]/g, "");
-  const methylcyclopentenes = new Set(["C1C(C)=CCC1", "C1CC=C(C)C1", "C1CCC(C)=C1", "CC1=CCCC1"]);
-  const methylcyclohexenes = new Set(["C1C(C)=CCCC1", "C1CC=C(C)CC1", "C1CCC=C(C)C1", "C1CCC(C)=CC1", "C1CCCC(C)=C1", "CC1=CCCCC1"]);
-  if (methylcyclopentenes.has(compact)) return 5;
-  if (methylcyclohexenes.has(compact)) return 6;
-  return null;
+  return simpleCycloalkene(smiles)?.size ?? null;
 }
 function alkeneOzonolysis(smiles: string) {
   if (!/C=C/.test(smiles)) return null;
