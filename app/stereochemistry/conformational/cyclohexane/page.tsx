@@ -42,21 +42,21 @@ const axialUpPattern = [true, false, true, false, true, false];
 const ringBonds: NewmanBond[] = ["1-2", "2-3", "3-4", "4-5", "5-6", "6-1"];
 
 const originalChairPoints: Point[] = [
-  { x: 72, y: 188 },
+  { x: 72, y: 210 },
   { x: 132, y: 142 },
   { x: 198, y: 166 },
   { x: 278, y: 118 },
   { x: 218, y: 226 },
-  { x: 132, y: 252 }
+  { x: 132, y: 226 }
 ];
 
 const flippedChairPoints: Point[] = [
-  { x: 72, y: 182 },
+  { x: 72, y: 160 },
   { x: 132, y: 228 },
   { x: 198, y: 204 },
   { x: 278, y: 252 },
   { x: 218, y: 144 },
-  { x: 132, y: 118 }
+  { x: 132, y: 144 }
 ];
 
 function baseRingPoint(index: number, flipped: boolean): Point {
@@ -96,6 +96,12 @@ function chairPath(flipped: boolean, view: ViewDirection) {
 function derivedPosition(carbon: number, orientation: Orientation, flipped: boolean): Position {
   const axialUp = flipped ? !axialUpPattern[carbon - 1] : axialUpPattern[carbon - 1];
   return (orientation === "up") === axialUp ? "axial" : "equatorial";
+}
+
+function orientationForPosition(carbon: number, position: Position, flipped = false): Orientation {
+  const axialUp = flipped ? !axialUpPattern[carbon - 1] : axialUpPattern[carbon - 1];
+  if (position === "axial") return axialUp ? "up" : "down";
+  return axialUp ? "down" : "up";
 }
 
 function baseSubstituentVector(carbon: number, orientation: Orientation, flipped: boolean) {
@@ -140,7 +146,7 @@ function newmanTextForCarbon(carbon: number, placements: Placement[]) {
     .map((placement) => {
       const substituent = getSubstituent(placement.substituentId);
       const position = derivedPosition(placement.carbon, placement.orientation, false);
-      return `${placement.id}: ${substituent.name} ${placement.orientation}, ${position}`;
+      return `${placement.id}: ${substituent.name} ${position}`;
     })
     .join(" / ");
 }
@@ -178,6 +184,7 @@ function SubstituentBond({
     y: clamp(end.y + normal.y * 24, 28, 258)
   };
   const position = derivedPosition(placement.carbon, placement.orientation, flipped);
+  const positionLabel = position === "axial" ? "axial" : "equatorial";
   const rawAxisTop = { x: rawStart.x, y: rawStart.y - 46 };
   const rawAxisBottom = { x: rawStart.x, y: rawStart.y + 46 };
   const axisTop = projectPoint(rawAxisTop, view);
@@ -202,7 +209,7 @@ function SubstituentBond({
         {substituent.name}
       </text>
       <text x={labelPoint.x} y={labelPoint.y + 20} textAnchor="middle" className="fill-slate-500 text-[10px] font-bold uppercase">
-        {placement.id} {placement.orientation}
+        {placement.id} {positionLabel}
       </text>
     </g>
   );
@@ -334,6 +341,8 @@ function PlacementControls({
   placement: Placement;
   onChange: (next: Placement) => void;
 }) {
+  const currentPosition = derivedPosition(placement.carbon, placement.orientation, false);
+
   return (
     <div className="rounded-2xl border border-slate-200 p-4">
       <h3 className="font-bold">{title}</h3>
@@ -347,19 +356,26 @@ function PlacementControls({
 
         <label className="block">
           <span className="mb-1 block text-sm font-bold text-slate-700">Ring carbon</span>
-          <select value={placement.carbon} onChange={(e) => onChange({ ...placement, carbon: Number(e.target.value) })} className="w-full rounded-xl border p-3">
+          <select
+            value={placement.carbon}
+            onChange={(e) => {
+              const nextCarbon = Number(e.target.value);
+              onChange({ ...placement, carbon: nextCarbon, orientation: orientationForPosition(nextCarbon, currentPosition) });
+            }}
+            className="w-full rounded-xl border p-3"
+          >
             {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>C{n}</option>)}
           </select>
         </label>
 
         <div>
-          <span className="mb-1 block text-sm font-bold text-slate-700">Direction</span>
+          <span className="mb-1 block text-sm font-bold text-slate-700">Position in original chair</span>
           <div className="grid grid-cols-2 rounded-xl border p-1">
-            {(["up", "down"] as Orientation[]).map((value) => (
+            {(["axial", "equatorial"] as Position[]).map((value) => (
               <button
                 key={value}
-                onClick={() => onChange({ ...placement, orientation: value })}
-                className={`rounded-lg px-4 py-3 font-bold capitalize ${placement.orientation === value ? "bg-emerald-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+                onClick={() => onChange({ ...placement, orientation: orientationForPosition(placement.carbon, value) })}
+                className={`rounded-lg px-4 py-3 font-bold capitalize ${currentPosition === value ? "bg-emerald-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
               >
                 {value}
               </button>
@@ -487,7 +503,7 @@ export default function CyclohexaneConformationPage() {
             </div>
 
             <div className="mt-5 rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
-              <b>Important:</b> a ring flip preserves up/down stereochemistry. It only swaps axial and equatorial positions.
+              <b>Important:</b> a ring flip preserves the face of each substituent and swaps axial/equatorial positions.
             </div>
           </div>
         </section>
@@ -513,8 +529,8 @@ export default function CyclohexaneConformationPage() {
           <article className="rounded-3xl bg-white p-6 shadow">
             <h2 className="text-2xl font-bold">How to read the model</h2>
             <ul className="mt-4 space-y-3 text-slate-700">
-              <li className="rounded-2xl bg-slate-100 p-4"><b>Up/down:</b> defines which face of the ring the substituent occupies. Same face means cis; opposite faces means trans.</li>
-              <li className="rounded-2xl bg-slate-100 p-4"><b>Axial/equatorial:</b> calculated from the carbon number and up/down direction in the current chair.</li>
+              <li className="rounded-2xl bg-slate-100 p-4"><b>Face relationship:</b> substituents on the same face are cis; substituents on opposite faces are trans.</li>
+              <li className="rounded-2xl bg-slate-100 p-4"><b>Axial/equatorial:</b> choose the position in the original chair; the ring-flipped chair automatically shows the opposite position.</li>
               <li className="rounded-2xl bg-slate-100 p-4"><b>View direction:</b> rotates the drawing so the student can inspect the same molecule from another side.</li>
             </ul>
           </article>
