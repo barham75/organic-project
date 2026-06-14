@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart,
@@ -964,6 +965,26 @@ export default function ConformationalPage() {
           <p className="mt-2 text-slate-600">
             True 3D ball-and-stick model with mouse rotation, zoom, fixed rotating bond, synchronized Newman projection, visible energy origins, and reference energy values.
           </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-blue-300 bg-blue-50 p-5">
+              <p className="text-sm font-bold uppercase tracking-wide text-blue-700">Current lab</p>
+              <h2 className="mt-2 text-xl font-bold text-blue-950">Newman Projection</h2>
+              <p className="mt-2 text-blue-800">
+                Rotate around a sigma bond and compare staggered, gauche, anti, and eclipsed conformations.
+              </p>
+            </div>
+            <Link
+              href="/stereochemistry/conformational/cyclohexane"
+              className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 transition hover:bg-emerald-100"
+            >
+              <p className="text-sm font-bold uppercase tracking-wide text-emerald-700">New lab</p>
+              <h2 className="mt-2 text-xl font-bold text-emerald-950">Cyclohexane Chair Conformation</h2>
+              <p className="mt-2 text-emerald-800">
+                Study chair, boat, ring flip, axial/equatorial positions, and substituent stability.
+              </p>
+            </Link>
+          </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div>
