@@ -8,6 +8,7 @@ type Position = "axial" | "equatorial";
 type ViewDirection = "front" | "right" | "back" | "left";
 type NewmanBond = "1-2" | "2-3" | "3-4" | "4-5" | "5-6" | "6-1";
 type Point = { x: number; y: number };
+type Vec3 = { x: number; y: number; z: number };
 type Substituent = {
   id: string;
   name: string;
@@ -159,6 +160,40 @@ function polarPoint(center: Point, radius: number, angle: number) {
   };
 }
 
+function rotateVec(point: Vec3, rotX: number, rotY: number): Vec3 {
+  const xRad = (rotX * Math.PI) / 180;
+  const yRad = (rotY * Math.PI) / 180;
+  const cosX = Math.cos(xRad);
+  const sinX = Math.sin(xRad);
+  const cosY = Math.cos(yRad);
+  const sinY = Math.sin(yRad);
+  const y1 = point.y * cosX - point.z * sinX;
+  const z1 = point.y * sinX + point.z * cosX;
+  return {
+    x: point.x * cosY + z1 * sinY,
+    y: y1,
+    z: -point.x * sinY + z1 * cosY
+  };
+}
+
+function projectVec(point: Vec3, rotX: number, rotY: number): Point {
+  const rotated = rotateVec(point, rotX, rotY);
+  const scale = 82 / (3.8 - rotated.z * 0.18);
+  return {
+    x: 250 + rotated.x * scale,
+    y: 190 + rotated.y * scale
+  };
+}
+
+function addVec(a: Vec3, b: Vec3): Vec3 {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+}
+
+function normalizeVec(point: Vec3): Vec3 {
+  const length = Math.max(0.01, Math.hypot(point.x, point.y, point.z));
+  return { x: point.x / length, y: point.y / length, z: point.z / length };
+}
+
 function SubstituentBond({
   placement,
   flipped,
@@ -247,6 +282,120 @@ function CyclohexaneDrawing({
         {flipped ? "Ring-flipped chair" : "Original chair"} - {viewLabels[view]} view
       </text>
     </svg>
+  );
+}
+
+function InteractiveChairModel({ placements }: { placements: Placement[] }) {
+  const [rotation, setRotation] = useState({ x: -24, y: 28 });
+  const [drag, setDrag] = useState<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 });
+  const chairAtoms: Vec3[] = [
+    { x: -1.45, y: 0.55, z: -0.55 },
+    { x: -0.78, y: -0.36, z: 0.55 },
+    { x: 0.28, y: -0.18, z: -0.55 },
+    { x: 1.24, y: -0.82, z: 0.55 },
+    { x: 0.78, y: 0.52, z: -0.55 },
+    { x: -0.52, y: 1.02, z: 0.55 }
+  ];
+  const bonds = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 4],
+    [4, 5],
+    [5, 0]
+  ];
+  const substituentItems = placements.map((placement, index) => {
+    const start = chairAtoms[placement.carbon - 1];
+    const position = derivedPosition(placement.carbon, placement.orientation, false);
+    const outward = normalizeVec({ x: start.x, y: start.y, z: 0 });
+    const vector =
+      position === "axial"
+        ? { x: 0, y: 0, z: placement.orientation === "up" ? 1.3 : -1.3 }
+        : { x: outward.x * 1.18, y: outward.y * 1.18, z: placement.orientation === "up" ? 0.22 : -0.22 };
+    return {
+      placement,
+      color: index === 0 ? "#dc2626" : "#059669",
+      start,
+      end: addVec(start, vector),
+      label: getSubstituent(placement.substituentId).name,
+      position
+    };
+  });
+
+  return (
+    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold">Interactive 3D chair</h2>
+          <p className="mt-1 text-sm text-slate-600">Drag the model with the mouse to inspect the selected cyclohexane from different angles.</p>
+        </div>
+        <button
+          onClick={() => setRotation({ x: -24, y: 28 })}
+          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+        >
+          Reset view
+        </button>
+      </div>
+
+      <svg
+        viewBox="0 0 500 360"
+        className="mt-4 h-[360px] w-full cursor-grab rounded-2xl bg-slate-50 active:cursor-grabbing"
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDrag({ active: true, x: event.clientX, y: event.clientY });
+        }}
+        onPointerMove={(event) => {
+          if (!drag.active) return;
+          const dx = event.clientX - drag.x;
+          const dy = event.clientY - drag.y;
+          setRotation((current) => ({ x: clamp(current.x - dy * 0.7, -80, 80), y: current.y + dx * 0.7 }));
+          setDrag({ active: true, x: event.clientX, y: event.clientY });
+        }}
+        onPointerUp={() => setDrag((current) => ({ ...current, active: false }))}
+        onPointerCancel={() => setDrag((current) => ({ ...current, active: false }))}
+      >
+        <rect x="18" y="18" width="464" height="324" rx="18" fill="#ffffff" stroke="#dbe3ef" />
+        {bonds.map(([from, to]) => {
+          const start = projectVec(chairAtoms[from], rotation.x, rotation.y);
+          const end = projectVec(chairAtoms[to], rotation.x, rotation.y);
+          return <line key={`${from}-${to}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#0f172a" strokeWidth="7" strokeLinecap="round" />;
+        })}
+        {substituentItems.map((item) => {
+          const start = projectVec(item.start, rotation.x, rotation.y);
+          const end = projectVec(item.end, rotation.x, rotation.y);
+          const label = {
+            x: clamp(end.x + (end.x - start.x) * 0.32, 42, 458),
+            y: clamp(end.y + (end.y - start.y) * 0.32, 42, 318)
+          };
+          return (
+            <g key={item.placement.id}>
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={item.color} strokeWidth="6" strokeLinecap="round" />
+              <circle cx={end.x} cy={end.y} r="9" fill={item.color} />
+              <text x={label.x} y={label.y - 4} textAnchor="middle" className="fill-slate-950 text-sm font-bold">
+                {item.label}
+              </text>
+              <text x={label.x} y={label.y + 13} textAnchor="middle" className="fill-slate-500 text-[10px] font-bold uppercase">
+                {item.placement.id} {item.position}
+              </text>
+            </g>
+          );
+        })}
+        {chairAtoms.map((atom, index) => {
+          const point = projectVec(atom, rotation.x, rotation.y);
+          return (
+            <g key={index}>
+              <circle cx={point.x} cy={point.y} r="14" fill="#e0f2fe" stroke="#2563eb" strokeWidth="2" />
+              <text x={point.x} y={point.y + 5} textAnchor="middle" className="fill-blue-950 text-xs font-bold">
+                {index + 1}
+              </text>
+            </g>
+          );
+        })}
+        <text x="36" y="48" className="fill-slate-500 text-xs font-bold">
+          Mouse drag rotation: X {Math.round(rotation.x)}°, Y {Math.round(rotation.y)}°
+        </text>
+      </svg>
+    </div>
   );
 }
 
@@ -505,6 +654,8 @@ export default function CyclohexaneConformationPage() {
             <div className="mt-5 rounded-2xl bg-slate-100 p-4 text-sm text-slate-700">
               <b>Important:</b> a ring flip preserves the face of each substituent and swaps axial/equatorial positions.
             </div>
+
+            <InteractiveChairModel placements={placements} />
           </div>
         </section>
 
