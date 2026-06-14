@@ -178,7 +178,7 @@ function rotateVec(point: Vec3, rotX: number, rotY: number): Vec3 {
 
 function projectVec(point: Vec3, rotX: number, rotY: number): Point {
   const rotated = rotateVec(point, rotX, rotY);
-  const scale = 82 / (3.8 - rotated.z * 0.18);
+  const scale = 170 / (3.65 - rotated.z * 0.16);
   return {
     x: 250 + rotated.x * scale,
     y: 190 + rotated.y * scale
@@ -310,8 +310,8 @@ function InteractiveChairModel({ placements }: { placements: Placement[] }) {
     const outward = normalizeVec({ x: start.x, y: start.y, z: 0 });
     const vector =
       position === "axial"
-        ? { x: 0, y: 0, z: placement.orientation === "up" ? 1.3 : -1.3 }
-        : { x: outward.x * 1.18, y: outward.y * 1.18, z: placement.orientation === "up" ? 0.22 : -0.22 };
+        ? { x: 0, y: 0, z: placement.orientation === "up" ? 1.65 : -1.65 }
+        : { x: outward.x * 1.55, y: outward.y * 1.55, z: placement.orientation === "up" ? 0.28 : -0.28 };
     return {
       placement,
       color: index === 0 ? "#dc2626" : "#059669",
@@ -370,7 +370,7 @@ function InteractiveChairModel({ placements }: { placements: Placement[] }) {
           return (
             <g key={item.placement.id}>
               <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={item.color} strokeWidth="6" strokeLinecap="round" />
-              <circle cx={end.x} cy={end.y} r="9" fill={item.color} />
+              <circle cx={end.x} cy={end.y} r="7" fill={item.color} />
               <text x={label.x} y={label.y - 4} textAnchor="middle" className="fill-slate-950 text-sm font-bold">
                 {item.label}
               </text>
@@ -384,7 +384,7 @@ function InteractiveChairModel({ placements }: { placements: Placement[] }) {
           const point = projectVec(atom, rotation.x, rotation.y);
           return (
             <g key={index}>
-              <circle cx={point.x} cy={point.y} r="14" fill="#e0f2fe" stroke="#2563eb" strokeWidth="2" />
+              <circle cx={point.x} cy={point.y} r="11" fill="#e0f2fe" stroke="#2563eb" strokeWidth="2" />
               <text x={point.x} y={point.y + 5} textAnchor="middle" className="fill-blue-950 text-xs font-bold">
                 {index + 1}
               </text>
