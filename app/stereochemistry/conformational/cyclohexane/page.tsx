@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 type Orientation = "up" | "down";
 type Position = "axial" | "equatorial";
 type ViewDirection = "front" | "right" | "back" | "left";
+type NewmanBond = "1-2" | "2-3" | "3-4" | "4-5" | "5-6" | "6-1";
 type Point = { x: number; y: number };
 type Substituent = {
   id: string;
@@ -38,19 +39,28 @@ const viewLabels: Record<ViewDirection, string> = {
 };
 
 const axialUpPattern = [true, false, true, false, true, false];
+const ringBonds: NewmanBond[] = ["1-2", "2-3", "3-4", "4-5", "5-6", "6-1"];
+
+const originalChairPoints: Point[] = [
+  { x: 72, y: 188 },
+  { x: 132, y: 142 },
+  { x: 198, y: 166 },
+  { x: 278, y: 118 },
+  { x: 218, y: 226 },
+  { x: 132, y: 252 }
+];
+
+const flippedChairPoints: Point[] = [
+  { x: 72, y: 182 },
+  { x: 132, y: 228 },
+  { x: 198, y: 204 },
+  { x: 278, y: 252 },
+  { x: 218, y: 144 },
+  { x: 132, y: 118 }
+];
 
 function baseRingPoint(index: number, flipped: boolean): Point {
-  const points = [
-    { x: 72, y: 188 },
-    { x: 132, y: 142 },
-    { x: 198, y: 166 },
-    { x: 278, y: 118 },
-    { x: 218, y: 226 },
-    { x: 132, y: 252 }
-  ];
-  const p = points[index % 6];
-  if (!flipped) return p;
-  return { x: 350 - p.x, y: p.y };
+  return (flipped ? flippedChairPoints : originalChairPoints)[index % 6];
 }
 
 function projectPoint(point: Point, view: ViewDirection): Point {
@@ -91,18 +101,18 @@ function derivedPosition(carbon: number, orientation: Orientation, flipped: bool
 function baseSubstituentVector(carbon: number, orientation: Orientation, flipped: boolean) {
   const position = derivedPosition(carbon, orientation, flipped);
   if (position === "axial") return { dx: 0, dy: orientation === "up" ? -72 : 72 };
-  const equatorialDirection = [
-    { dx: -62, dy: -28 },
-    { dx: -58, dy: -36 },
-    { dx: 66, dy: -22 },
-    { dx: 66, dy: 24 },
+  const equatorialSide = [
+    { dx: -62, dy: 28 },
+    { dx: -58, dy: 36 },
+    { dx: 66, dy: 28 },
+    { dx: 66, dy: 28 },
     { dx: 30, dy: 64 },
-    { dx: -66, dy: 22 }
+    { dx: -66, dy: 28 }
   ][carbon - 1];
-  const pointsUp = orientation === "up";
-  const vectorPointsUp = equatorialDirection.dy < 0;
-  const vector = pointsUp === vectorPointsUp ? equatorialDirection : { dx: -equatorialDirection.dx, dy: -equatorialDirection.dy };
-  return flipped ? { dx: -vector.dx, dy: vector.dy } : vector;
+  return {
+    dx: flipped ? -equatorialSide.dx : equatorialSide.dx,
+    dy: orientation === "up" ? -Math.abs(equatorialSide.dy) : Math.abs(equatorialSide.dy)
+  };
 }
 
 function getSubstituent(id: string) {
@@ -116,6 +126,31 @@ function placementEnergy(placement: Placement, flipped: boolean) {
 
 function relationLabel(a: Placement, b: Placement) {
   return a.orientation === b.orientation ? "cis" : "trans";
+}
+
+function parseNewmanBond(bond: NewmanBond) {
+  const [front, back] = bond.split("-").map(Number);
+  return { front, back };
+}
+
+function newmanTextForCarbon(carbon: number, placements: Placement[]) {
+  const matches = placements.filter((placement) => placement.carbon === carbon);
+  if (matches.length === 0) return "H";
+  return matches
+    .map((placement) => {
+      const substituent = getSubstituent(placement.substituentId);
+      const position = derivedPosition(placement.carbon, placement.orientation, false);
+      return `${placement.id}: ${substituent.name} ${placement.orientation}, ${position}`;
+    })
+    .join(" / ");
+}
+
+function polarPoint(center: Point, radius: number, angle: number) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    x: center.x + radius * Math.cos(radians),
+    y: center.y + radius * Math.sin(radians)
+  };
 }
 
 function SubstituentBond({
@@ -208,6 +243,88 @@ function CyclohexaneDrawing({
   );
 }
 
+function NewmanProjection({
+  bond,
+  placements,
+  onBondChange
+}: {
+  bond: NewmanBond;
+  placements: Placement[];
+  onBondChange: (bond: NewmanBond) => void;
+}) {
+  const { front, back } = parseNewmanBond(bond);
+  const center = { x: 180, y: 150 };
+  const frontAngles = [-90, 150, 30];
+  const backAngles = [-30, 90, 210];
+  const frontLabel = newmanTextForCarbon(front, placements);
+  const backLabel = newmanTextForCarbon(back, placements);
+  const frontPositions = [
+    frontLabel,
+    `ring to C${front === 1 ? 6 : front - 1}`,
+    "H"
+  ];
+  const backPositions = [
+    backLabel,
+    `ring to C${back === 6 ? 1 : back + 1}`,
+    "H"
+  ];
+
+  return (
+    <div className="rounded-3xl bg-white p-5 shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">Newman projection</h2>
+          <p className="mt-1 text-sm text-slate-600">View along the selected C-C bond in the original chair. The first carbon is the front carbon.</p>
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-sm font-bold text-slate-700">Selected bond</span>
+          <select value={bond} onChange={(event) => onBondChange(event.target.value as NewmanBond)} className="rounded-xl border p-3 font-bold">
+            {ringBonds.map((value) => (
+              <option key={value} value={value}>C{value.replace("-", "-C")}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <svg viewBox="0 0 360 300" className="mt-4 h-[300px] w-full rounded-2xl bg-slate-50">
+        <circle cx={center.x} cy={center.y} r="58" fill="none" stroke="#64748b" strokeWidth="4" />
+        {backAngles.map((angle, index) => {
+          const start = polarPoint(center, 58, angle);
+          const end = polarPoint(center, 104, angle);
+          const label = polarPoint(center, 126, angle);
+          return (
+            <g key={`back-${angle}`}>
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
+              <text x={label.x} y={label.y + 4} textAnchor="middle" className="fill-slate-600 text-[11px] font-bold">
+                {backPositions[index]}
+              </text>
+            </g>
+          );
+        })}
+        {frontAngles.map((angle, index) => {
+          const end = polarPoint(center, 96, angle);
+          const label = polarPoint(center, 122, angle);
+          return (
+            <g key={`front-${angle}`}>
+              <line x1={center.x} y1={center.y} x2={end.x} y2={end.y} stroke="#0f172a" strokeWidth="5" strokeLinecap="round" />
+              <text x={label.x} y={label.y + 4} textAnchor="middle" className="fill-slate-900 text-[11px] font-bold">
+                {frontPositions[index]}
+              </text>
+            </g>
+          );
+        })}
+        <circle cx={center.x} cy={center.y} r="16" fill="#0f172a" />
+        <text x={center.x} y={center.y + 5} textAnchor="middle" className="fill-white text-xs font-bold">
+          C{front}
+        </text>
+        <text x={center.x} y={center.y + 82} textAnchor="middle" className="fill-slate-600 text-xs font-bold">
+          back carbon: C{back}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
 function PlacementControls({
   title,
   placement,
@@ -258,6 +375,7 @@ export default function CyclohexaneConformationPage() {
   const [firstPlacement, setFirstPlacement] = useState<Placement>({ id: "A", substituentId: "methyl", carbon: 1, orientation: "up" });
   const [secondPlacement, setSecondPlacement] = useState<Placement>({ id: "B", substituentId: "ethyl", carbon: 3, orientation: "down" });
   const [view, setView] = useState<ViewDirection>("front");
+  const [newmanBond, setNewmanBond] = useState<NewmanBond>("1-2");
 
   const placements = [firstPlacement, secondPlacement];
   const originalEnergy = placements.reduce((sum, p) => sum + placementEnergy(p, false), 0);
@@ -314,6 +432,15 @@ export default function CyclohexaneConformationPage() {
                   ))}
                 </div>
               </div>
+
+              <div>
+                <span className="mb-2 block font-bold text-slate-700">Newman bond</span>
+                <select value={newmanBond} onChange={(event) => setNewmanBond(event.target.value as NewmanBond)} className="w-full rounded-xl border p-3 font-bold">
+                  {ringBonds.map((value) => (
+                    <option key={value} value={value}>C{value.replace("-", "-C")}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-emerald-950">
@@ -363,6 +490,10 @@ export default function CyclohexaneConformationPage() {
               <b>Important:</b> a ring flip preserves up/down stereochemistry. It only swaps axial and equatorial positions.
             </div>
           </div>
+        </section>
+
+        <section className="mt-6">
+          <NewmanProjection bond={newmanBond} placements={placements} onBondChange={setNewmanBond} />
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-2">
