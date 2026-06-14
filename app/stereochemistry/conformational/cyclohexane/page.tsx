@@ -43,20 +43,20 @@ const axialUpPattern = [true, false, true, false, true, false];
 const ringBonds: NewmanBond[] = ["1-2", "2-3", "3-4", "4-5", "5-6", "6-1"];
 
 const originalChairPoints: Point[] = [
-  { x: 72, y: 210 },
-  { x: 132, y: 142 },
-  { x: 198, y: 166 },
-  { x: 278, y: 118 },
-  { x: 218, y: 226 },
-  { x: 132, y: 226 }
+  { x: 64, y: 228 },
+  { x: 126, y: 148 },
+  { x: 198, y: 168 },
+  { x: 286, y: 112 },
+  { x: 232, y: 214 },
+  { x: 132, y: 196 }
 ];
 
 const flippedChairPoints: Point[] = [
-  { x: 72, y: 160 },
-  { x: 132, y: 228 },
-  { x: 198, y: 204 },
-  { x: 278, y: 252 },
-  { x: 218, y: 144 },
+  { x: 64, y: 112 },
+  { x: 126, y: 192 },
+  { x: 198, y: 172 },
+  { x: 286, y: 228 },
+  { x: 232, y: 126 },
   { x: 132, y: 144 }
 ];
 
@@ -289,12 +289,12 @@ function InteractiveChairModel({ placements }: { placements: Placement[] }) {
   const [rotation, setRotation] = useState({ x: -24, y: 28 });
   const [drag, setDrag] = useState<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 });
   const chairAtoms: Vec3[] = [
-    { x: -1.45, y: 0.55, z: -0.55 },
-    { x: -0.78, y: -0.36, z: 0.55 },
-    { x: 0.28, y: -0.18, z: -0.55 },
-    { x: 1.24, y: -0.82, z: 0.55 },
-    { x: 0.78, y: 0.52, z: -0.55 },
-    { x: -0.52, y: 1.02, z: 0.55 }
+    { x: -1.65, y: 0.78, z: -0.58 },
+    { x: -0.92, y: -0.42, z: 0.58 },
+    { x: 0.22, y: -0.18, z: -0.58 },
+    { x: 1.55, y: -0.95, z: 0.58 },
+    { x: 0.78, y: 0.62, z: -0.58 },
+    { x: -0.72, y: 0.38, z: 0.58 }
   ];
   const bonds = [
     [0, 1],
