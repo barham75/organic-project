@@ -23,16 +23,16 @@ const substituents: Substituent[] = [
 
 function ringPoint(index: number, flipped: boolean) {
   const points = [
-    { x: 100, y: 140 },
-    { x: 165, y: 102 },
-    { x: 245, y: 128 },
-    { x: 245, y: 208 },
-    { x: 165, y: 236 },
-    { x: 100, y: 200 }
+    { x: 72, y: 188 },
+    { x: 132, y: 142 },
+    { x: 198, y: 166 },
+    { x: 278, y: 118 },
+    { x: 218, y: 226 },
+    { x: 132, y: 252 }
   ];
   const p = points[index % 6];
   if (!flipped) return p;
-  return { x: p.x, y: 338 - p.y };
+  return { x: 350 - p.x, y: p.y };
 }
 
 function chairPath(flipped: boolean) {
@@ -43,16 +43,16 @@ function chairPath(flipped: boolean) {
 function substituentVector(carbon: number, position: Position, flipped: boolean) {
   const axialUp = [true, false, true, false, true, false];
   const isAxialUp = flipped ? !axialUp[carbon - 1] : axialUp[carbon - 1];
-  if (position === "axial") return { dx: 0, dy: isAxialUp ? -58 : 58 };
+  if (position === "axial") return { dx: 0, dy: isAxialUp ? -72 : 72 };
   const equatorialDirection = [
-    { dx: -54, dy: 24 },
-    { dx: 20, dy: -54 },
-    { dx: 58, dy: -12 },
-    { dx: 54, dy: 24 },
-    { dx: -20, dy: 54 },
-    { dx: -58, dy: -12 }
+    { dx: -62, dy: -28 },
+    { dx: -58, dy: -36 },
+    { dx: 66, dy: -22 },
+    { dx: 66, dy: 24 },
+    { dx: 30, dy: 64 },
+    { dx: -66, dy: 22 }
   ][carbon - 1];
-  return flipped ? { dx: equatorialDirection.dx, dy: -equatorialDirection.dy } : equatorialDirection;
+  return flipped ? { dx: -equatorialDirection.dx, dy: equatorialDirection.dy } : equatorialDirection;
 }
 
 function CyclohexaneDrawing({
@@ -69,22 +69,27 @@ function CyclohexaneDrawing({
   const start = ringPoint(carbon - 1, flipped);
   const v = substituentVector(carbon, position, flipped);
   const end = { x: start.x + v.dx, y: start.y + v.dy };
+  const labelOffset = position === "axial" ? { x: 0, y: v.dy > 0 ? 26 : -18 } : { x: v.dx > 0 ? 30 : -30, y: v.dy > 0 ? 12 : -8 };
+  const labelPoint = { x: end.x + labelOffset.x, y: end.y + labelOffset.y };
+  const axisGuideTop = { x: start.x, y: start.y - 54 };
+  const axisGuideBottom = { x: start.x, y: start.y + 54 };
 
   return (
     <svg viewBox="0 0 350 310" className="h-full min-h-[310px] w-full rounded-lg bg-white">
       <polyline points={chairPath(flipped)} fill="none" stroke="#0f172a" strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" />
+      <line x1={axisGuideTop.x} y1={axisGuideTop.y} x2={axisGuideBottom.x} y2={axisGuideBottom.y} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 5" />
       {Array.from({ length: 6 }, (_, i) => {
         const p = ringPoint(i, flipped);
         return (
           <g key={i}>
-            <circle cx={p.x} cy={p.y} r="16" fill={i + 1 === carbon ? "#dbeafe" : "#f8fafc"} stroke={i + 1 === carbon ? "#2563eb" : "#cbd5e1"} strokeWidth="2" />
-            <text x={p.x} y={p.y + 5} textAnchor="middle" className="fill-slate-700 text-sm font-bold">{i + 1}</text>
+            <circle cx={p.x} cy={p.y} r="10" fill={i + 1 === carbon ? "#dbeafe" : "#ffffff"} stroke={i + 1 === carbon ? "#2563eb" : "#cbd5e1"} strokeWidth="2" />
+            <text x={p.x} y={p.y + 4} textAnchor="middle" className="fill-slate-700 text-[10px] font-bold">{i + 1}</text>
           </g>
         );
       })}
       <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={position === "axial" ? "#dc2626" : "#059669"} strokeWidth="4" strokeLinecap="round" />
-      <circle cx={end.x} cy={end.y} r="24" fill={position === "axial" ? "#fee2e2" : "#dcfce7"} stroke={position === "axial" ? "#dc2626" : "#059669"} strokeWidth="2" />
-      <text x={end.x} y={end.y + 5} textAnchor="middle" className="fill-slate-900 text-sm font-bold">{label}</text>
+      <circle cx={end.x} cy={end.y} r="5" fill={position === "axial" ? "#dc2626" : "#059669"} />
+      <text x={labelPoint.x} y={labelPoint.y} textAnchor="middle" className="fill-slate-900 text-sm font-bold">{label}</text>
       <text x="18" y="286" className="fill-slate-600 text-sm font-bold">
         {flipped ? "Ring-flipped chair" : "Original chair"} - C{carbon} {position}
       </text>
