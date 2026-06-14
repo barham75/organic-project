@@ -74,6 +74,10 @@ function ringPoint(index: number, flipped: boolean, view: ViewDirection) {
   return projectPoint(baseRingPoint(index, flipped), view);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function chairPath(flipped: boolean, view: ViewDirection) {
   const pts = Array.from({ length: 6 }, (_, i) => ringPoint(i, flipped, view));
   return `${pts.map((p) => `${p.x},${p.y}`).join(" ")}`;
@@ -134,17 +138,24 @@ function SubstituentBond({
   const lineVector = { dx: end.x - start.x, dy: end.y - start.y };
   const length = Math.max(1, Math.hypot(lineVector.dx, lineVector.dy));
   const normal = { x: lineVector.dx / length, y: lineVector.dy / length };
-  const labelPoint = { x: end.x + normal.x * 24, y: end.y + normal.y * 24 };
+  const labelPoint = {
+    x: clamp(end.x + normal.x * 24, 34, 316),
+    y: clamp(end.y + normal.y * 24, 28, 258)
+  };
   const position = derivedPosition(placement.carbon, placement.orientation, flipped);
+  const rawAxisTop = { x: rawStart.x, y: rawStart.y - 46 };
+  const rawAxisBottom = { x: rawStart.x, y: rawStart.y + 46 };
+  const axisTop = projectPoint(rawAxisTop, view);
+  const axisBottom = projectPoint(rawAxisBottom, view);
 
   return (
     <g>
       {position === "axial" && (
         <line
-          x1={start.x}
-          y1={start.y - 46}
-          x2={start.x}
-          y2={start.y + 46}
+          x1={axisTop.x}
+          y1={axisTop.y}
+          x2={axisBottom.x}
+          y2={axisBottom.y}
           stroke="#cbd5e1"
           strokeWidth="2"
           strokeDasharray="4 5"
@@ -174,8 +185,8 @@ function CyclohexaneDrawing({
   const activeCarbons = new Set(placements.map((p) => p.carbon));
 
   return (
-    <svg viewBox="0 0 350 310" className="h-full min-h-[310px] w-full rounded-lg bg-white">
-      <polyline points={chairPath(flipped, view)} fill="none" stroke="#0f172a" strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" />
+    <svg viewBox="0 0 350 320" className="h-full min-h-[320px] w-full rounded-lg bg-white">
+      <polygon points={chairPath(flipped, view)} fill="none" stroke="#0f172a" strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" />
       {placements.map((placement, index) => (
         <SubstituentBond key={`${placement.id}-${flipped}`} placement={placement} flipped={flipped} view={view} color={index === 0 ? "#dc2626" : "#059669"} />
       ))}
@@ -190,7 +201,7 @@ function CyclohexaneDrawing({
           </g>
         );
       })}
-      <text x="18" y="286" className="fill-slate-600 text-sm font-bold">
+      <text x="18" y="304" className="fill-slate-600 text-sm font-bold">
         {flipped ? "Ring-flipped chair" : "Original chair"} - {viewLabels[view]} view
       </text>
     </svg>
