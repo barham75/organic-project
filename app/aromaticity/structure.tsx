@@ -1,14 +1,21 @@
 type StructureId =
   | "benzene"
   | "cyclopropenyl-cation"
+  | "cyclopropenyl-anion"
   | "cyclopentadienyl-anion"
   | "tropylium"
+  | "cycloheptatrienyl-anion"
+  | "cycloheptatriene"
   | "cyclobutadiene"
   | "cyclopentadienyl-cation"
   | "cyclooctatetraene"
   | "cyclopentadiene"
   | "pyridine"
+  | "pyridinium"
   | "pyrrole"
+  | "furan"
+  | "thiophene"
+  | "imidazole"
   | "generic-conjugated";
 
 type Point = { x: number; y: number };
@@ -28,14 +35,21 @@ type RingStructure = {
 const structures: Record<StructureId, RingStructure> = {
   benzene: { atoms: 6, doubleBonds: [0, 2, 4] },
   "cyclopropenyl-cation": { atoms: 3, doubleBonds: [1], charge: "+", chargeAtom: 0 },
+  "cyclopropenyl-anion": { atoms: 3, doubleBonds: [1], charge: "-", chargeAtom: 0, lonePairAtom: 0 },
   "cyclopentadienyl-anion": { atoms: 5, doubleBonds: [0, 2], charge: "-", chargeAtom: 4, lonePairAtom: 4 },
   tropylium: { atoms: 7, doubleBonds: [0, 2, 4], charge: "+", chargeInCenter: true },
+  "cycloheptatrienyl-anion": { atoms: 7, doubleBonds: [0, 2, 4], charge: "-", chargeAtom: 6, lonePairAtom: 6 },
+  cycloheptatriene: { atoms: 7, doubleBonds: [0, 2, 4], sp3: 6 },
   cyclobutadiene: { atoms: 4, doubleBonds: [0, 2] },
   "cyclopentadienyl-cation": { atoms: 5, doubleBonds: [0, 2], charge: "+", chargeAtom: 4 },
   cyclooctatetraene: { atoms: 8, doubleBonds: [0, 2, 4, 6], nonplanar: true },
   cyclopentadiene: { atoms: 5, doubleBonds: [0, 2], sp3: 4 },
   pyridine: { atoms: 6, doubleBonds: [0, 2, 4], hetero: { 0: "N" }, lonePairAtom: 0 },
+  pyridinium: { atoms: 6, doubleBonds: [0, 2, 4], charge: "+", chargeAtom: 0, hetero: { 0: "NH" } },
   pyrrole: { atoms: 5, doubleBonds: [1, 3], hetero: { 0: "NH" }, lonePairAtom: 0 },
+  furan: { atoms: 5, doubleBonds: [1, 3], hetero: { 0: "O" }, lonePairAtom: 0 },
+  thiophene: { atoms: 5, doubleBonds: [1, 3], hetero: { 0: "S" }, lonePairAtom: 0 },
+  imidazole: { atoms: 5, doubleBonds: [1, 3], hetero: { 0: "NH", 2: "N" }, lonePairAtom: 0 },
   "generic-conjugated": { atoms: 6, doubleBonds: [0, 2, 4] },
 };
 
