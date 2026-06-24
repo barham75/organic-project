@@ -68,7 +68,11 @@ export function AromaticStructure({ id, compact = false }: { id: string; compact
           point={
             structure.chargeInCenter || structure.chargeAtom === undefined
               ? center
-              : markPoint(points[structure.chargeAtom], center, structure.chargeAtom === structure.lonePairAtom ? 38 : 28)
+              : safeLabelPoint(
+                  chargePoint(id, points[structure.chargeAtom], center, structure.chargeAtom === structure.lonePairAtom ? 38 : 28),
+                  width,
+                  height
+                )
           }
           sign={structure.charge}
         />
@@ -134,6 +138,21 @@ function markPoint(point: Point, center: Point, distance: number) {
   return { x: point.x + (dx / length) * distance, y: point.y + (dy / length) * distance };
 }
 
+function chargePoint(id: string, atom: Point, center: Point, distance: number) {
+  if (id === "cyclopropenyl-cation") {
+    return { x: atom.x + 32, y: atom.y - 2 };
+  }
+
+  return markPoint(atom, center, distance);
+}
+
+function safeLabelPoint(point: Point, width: number, height: number) {
+  return {
+    x: Math.min(width - 24, Math.max(24, point.x)),
+    y: Math.min(height - 24, Math.max(28, point.y)),
+  };
+}
+
 function AtomLabel({ point, label }: { point: Point; label: string }) {
   const width = label.length > 1 ? 42 : 26;
   return (
@@ -170,7 +189,15 @@ function ExternalAtomLabel({ atom, center, label }: { atom: Point; center: Point
 
 function ChargeLabel({ point, sign }: { point: Point; sign: string }) {
   return (
-    <text x={point.x} y={point.y + 8} textAnchor="middle" fill="#7c3aed" fontSize="24" fontWeight="700">
+    <text
+      x={point.x}
+      y={point.y}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fill="#7c3aed"
+      fontSize="28"
+      fontWeight="800"
+    >
       {sign}
     </text>
   );
