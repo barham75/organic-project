@@ -456,14 +456,14 @@ function getEnergyOrigins(compound: Compound, selected: EnergyPoint) {
   });
 
   origins.push({
-    kind: "Energy Minimum",
+    kind: "Total Energy",
     value: totalEnergy,
     color: "#22c55e",
-    active: totalEnergy <= 0.05 || isAnti,
+    active: true,
     target: "minimum",
     description: totalEnergy <= 0.05
       ? "This is a minimum-energy conformation for the selected profile."
-      : "Not the minimum at this angle."
+      : "Calculated from torsional plus steric/electronic contributions at this angle."
   });
 
   return origins;
