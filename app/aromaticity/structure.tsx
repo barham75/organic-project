@@ -41,11 +41,12 @@ const structures: Record<StructureId, RingStructure> = {
 
 export function AromaticStructure({ id, compact = false }: { id: string; compact?: boolean }) {
   const structure = structures[id as StructureId] ?? structures["generic-conjugated"];
+  const isCyclooctatetraene = id === "cyclooctatetraene";
   const width = compact ? 250 : 320;
-  const height = compact ? 145 : 180;
-  const center = { x: width / 2, y: height / 2 + 3 };
+  const height = compact ? (isCyclooctatetraene ? 165 : 145) : (isCyclooctatetraene ? 205 : 180);
+  const center = { x: width / 2, y: isCyclooctatetraene ? height / 2 - 8 : height / 2 + 3 };
   const radius = compact ? 52 : 67;
-  const points = polygon(structure.atoms, center, radius, structure.nonplanar);
+  const points = isCyclooctatetraene ? cyclooctatetraeneTub(center, compact ? 0.82 : 1) : polygon(structure.atoms, center, radius);
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Structural formula" className="mx-auto h-auto w-full max-w-xs">
@@ -74,17 +75,34 @@ export function AromaticStructure({ id, compact = false }: { id: string; compact
       )}
       {structure.lonePairAtom !== undefined && <LonePairLabel point={markPoint(points[structure.lonePairAtom], center, 20)} />}
       {id === "generic-conjugated" && <text x={center.x} y={center.y + 5} textAnchor="middle" fill="#4f46e5" fontSize="15" fontWeight="700">continuous p orbitals</text>}
-      {structure.nonplanar && <text x={center.x} y={height - 8} textAnchor="middle" fill="#475569" fontSize="14" fontWeight="700">nonplanar tub conformation</text>}
+      {structure.nonplanar && <text x={center.x} y={height - 10} textAnchor="middle" fill="#475569" fontSize="14" fontWeight="700">nonplanar tub conformation</text>}
     </svg>
   );
 }
 
-function polygon(atoms: number, center: Point, radius: number, nonplanar = false) {
+function polygon(atoms: number, center: Point, radius: number) {
   return Array.from({ length: atoms }, (_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / atoms;
-    const wave = nonplanar ? (index % 2 === 0 ? -9 : 9) : 0;
-    return { x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle) + wave };
+    return { x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle) };
   });
+}
+
+function cyclooctatetraeneTub(center: Point, scale: number): Point[] {
+  const raw = [
+    { x: -16, y: -62 },
+    { x: 42, y: -39 },
+    { x: 62, y: 8 },
+    { x: 38, y: 63 },
+    { x: -5, y: 55 },
+    { x: -52, y: 62 },
+    { x: -68, y: 8 },
+    { x: -48, y: -37 },
+  ];
+
+  return raw.map((point) => ({
+    x: center.x + point.x * scale,
+    y: center.y + point.y * scale,
+  }));
 }
 
 function parallelInnerBond(start: Point, end: Point, center: Point): [Point, Point] {
