@@ -295,11 +295,19 @@ function polarToXY(cx: number, cy: number, r: number, deg: number) {
   };
 }
 
+function calculateTotalEnergy(point: Pick<EnergyPoint, "torsional" | "steric">) {
+  return Number((point.torsional + point.steric).toFixed(2));
+}
+
+function formatEnergy(value: number) {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(2).replace(/0$/, "");
+}
+
 function interpolateEnergy(compound: Compound, angle: number) {
   const points = compound.points;
   const a = Math.max(0, Math.min(360, angle));
   const exact = points.find((p) => p.angle === a);
-  if (exact) return exact;
+  if (exact) return { ...exact, total: calculateTotalEnergy(exact) };
 
   let left = points[0];
   let right = points[points.length - 1];
@@ -315,12 +323,15 @@ function interpolateEnergy(compound: Compound, angle: number) {
   const t = (a - left.angle) / (right.angle - left.angle);
   const smooth = (1 - Math.cos(Math.PI * t)) / 2;
 
+  const torsional = Number((left.torsional + (right.torsional - left.torsional) * smooth).toFixed(2));
+  const steric = Number((left.steric + (right.steric - left.steric) * smooth).toFixed(2));
+
   return {
     angle: a,
     type: `Between ${left.type} and ${right.type}`,
-    total: Number((left.total + (right.total - left.total) * smooth).toFixed(2)),
-    torsional: Number((left.torsional + (right.torsional - left.torsional) * smooth).toFixed(2)),
-    steric: Number((left.steric + (right.steric - left.steric) * smooth).toFixed(2)),
+    total: calculateTotalEnergy({ torsional, steric }),
+    torsional,
+    steric,
     note: `Interpolated between ${left.angle}° and ${right.angle}°.`
   };
 }
@@ -376,6 +387,7 @@ function getEnergyOrigins(compound: Compound, selected: EnergyPoint) {
   const isGauche = label.includes("gauche");
   const isEclipsed = label.includes("eclipsed");
   const isAnti = label.includes("anti") || label.includes("staggered");
+  const totalEnergy = calculateTotalEnergy(selected);
 
   const origins: {
     kind: string;
@@ -445,11 +457,11 @@ function getEnergyOrigins(compound: Compound, selected: EnergyPoint) {
 
   origins.push({
     kind: "Energy Minimum",
-    value: selected.total,
+    value: totalEnergy,
     color: "#22c55e",
-    active: selected.total <= 0.05 || isAnti,
+    active: totalEnergy <= 0.05 || isAnti,
     target: "minimum",
-    description: selected.total <= 0.05
+    description: totalEnergy <= 0.05
       ? "This is a minimum-energy conformation for the selected profile."
       : "Not the minimum at this angle."
   });
@@ -948,11 +960,12 @@ export default function ConformationalPage() {
 
   const compound = compounds.find((c) => c.id === compoundId) || compounds[0];
   const selected = interpolateEnergy(compound, angle);
+  const selectedTotalEnergy = calculateTotalEnergy(selected);
 
   const graphData = useMemo(() => {
     const data = [];
     for (let a = 0; a <= 360; a += 5) {
-      data.push({ angle: a, energy: interpolateEnergy(compound, a).total });
+      data.push({ angle: a, energy: calculateTotalEnergy(interpolateEnergy(compound, a)) });
     }
     return data;
   }, [compound]);
@@ -1077,11 +1090,18 @@ export default function ConformationalPage() {
               </div>
               <div className="rounded-2xl bg-amber-50 p-4">
                 <p className="text-sm text-amber-700">Energy</p>
-                <p className="text-2xl font-bold text-amber-900">{selected.total} kcal/mol</p>
+                <p className="text-2xl font-bold text-amber-900">{formatEnergy(selectedTotalEnergy)} kcal/mol</p>
               </div>
             </div>
 
             <h3 className="mt-6 text-xl font-bold text-slate-900">Energy Details</h3>
+
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <p className="text-sm font-bold uppercase tracking-wide">Total energy calculation</p>
+              <p className="mt-1 text-lg font-semibold">
+                E<sub>total</sub> = E<sub>torsional</sub> + E<sub>steric/electronic</sub> = {formatEnergy(selected.torsional)} + {formatEnergy(selected.steric)} = {formatEnergy(selectedTotalEnergy)} kcal/mol
+              </p>
+            </div>
 
             <div className="mt-3 overflow-hidden rounded-2xl border">
               <table className="w-full text-left">
@@ -1102,7 +1122,7 @@ export default function ConformationalPage() {
                   </tr>
                   <tr className="border-t bg-slate-50">
                     <td className="p-3 font-bold">Total Relative Energy</td>
-                    <td className="p-3 font-bold">{selected.total}</td>
+                    <td className="p-3 font-bold">{formatEnergy(selectedTotalEnergy)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1130,7 +1150,7 @@ export default function ConformationalPage() {
                 <YAxis />
                 <Tooltip />
                 <Line type="monotone" dataKey="energy" strokeWidth={3} dot={false} />
-                <ReferenceDot x={angle} y={selected.total} r={8} label="Selected" />
+                <ReferenceDot x={angle} y={selectedTotalEnergy} r={8} label="Selected" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1159,9 +1179,14 @@ export default function ConformationalPage() {
                   >
                     <td className="p-3 font-semibold">{p.angle}°</td>
                     <td className="p-3">{p.type}</td>
-                    <td className="p-3">{p.torsional}</td>
-                    <td className="p-3">{p.steric}</td>
-                    <td className="p-3 font-bold">{p.total}</td>
+                    <td className="p-3">{formatEnergy(p.torsional)}</td>
+                    <td className="p-3">{formatEnergy(p.steric)}</td>
+                    <td className="p-3 font-bold">
+                      {formatEnergy(calculateTotalEnergy(p))}
+                      <span className="block text-xs font-normal text-slate-500">
+                        {formatEnergy(p.torsional)} + {formatEnergy(p.steric)}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
