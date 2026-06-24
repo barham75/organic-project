@@ -43,8 +43,8 @@ export function AromaticStructure({ id, compact = false }: { id: string; compact
   const structure = structures[id as StructureId] ?? structures["generic-conjugated"];
   const isCyclooctatetraene = id === "cyclooctatetraene";
   const width = compact ? 250 : 320;
-  const height = compact ? (isCyclooctatetraene ? 165 : 145) : (isCyclooctatetraene ? 205 : 180);
-  const center = { x: width / 2, y: isCyclooctatetraene ? height / 2 - 8 : height / 2 + 3 };
+  const height = compact ? (isCyclooctatetraene ? 175 : 145) : (isCyclooctatetraene ? 220 : 180);
+  const center = { x: width / 2, y: isCyclooctatetraene ? height / 2 - 18 : height / 2 + 3 };
   const radius = compact ? 52 : 67;
   const points = isCyclooctatetraene ? cyclooctatetraeneTub(center, compact ? 0.82 : 1) : polygon(structure.atoms, center, radius);
 
@@ -89,14 +89,14 @@ function polygon(atoms: number, center: Point, radius: number) {
 
 function cyclooctatetraeneTub(center: Point, scale: number): Point[] {
   const raw = [
-    { x: -16, y: -62 },
-    { x: 42, y: -39 },
-    { x: 62, y: 8 },
-    { x: 38, y: 63 },
-    { x: -5, y: 55 },
-    { x: -52, y: 62 },
-    { x: -68, y: 8 },
-    { x: -48, y: -37 },
+    { x: -64, y: -18 },
+    { x: -32, y: -54 },
+    { x: 24, y: -62 },
+    { x: 64, y: -28 },
+    { x: 78, y: 18 },
+    { x: 42, y: 62 },
+    { x: -34, y: 58 },
+    { x: -78, y: 20 },
   ];
 
   return raw.map((point) => ({
