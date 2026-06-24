@@ -62,7 +62,7 @@ export function AromaticStructure({ id, compact = false }: { id: string; compact
         const point = points[Number(index)];
         return <AtomLabel key={`${index}-${label}`} point={point} label={label} />;
       })}
-      {structure.sp3 !== undefined && <AtomLabel point={points[structure.sp3]} label="CH2" />}
+      {structure.sp3 !== undefined && <ExternalAtomLabel atom={points[structure.sp3]} center={center} label="CH2" />}
       {structure.charge && (
         <ChargeLabel
           point={
@@ -140,6 +140,30 @@ function AtomLabel({ point, label }: { point: Point; label: string }) {
     <g>
       <rect x={point.x - width / 2} y={point.y - 14} width={width} height="28" rx="4" fill="#fff" />
       <text x={point.x} y={point.y + 6} textAnchor="middle" fill="#be123c" fontSize="18" fontWeight="700">{label}</text>
+    </g>
+  );
+}
+
+function ExternalAtomLabel({ atom, center, label }: { atom: Point; center: Point; label: string }) {
+  const point = markPoint(atom, center, 32);
+  const width = label.length > 1 ? 42 : 26;
+  const anchor = point.x >= atom.x ? "start" : "end";
+  const textX = anchor === "start" ? point.x - 3 : point.x + 3;
+
+  return (
+    <g>
+      <line x1={atom.x} y1={atom.y} x2={point.x} y2={point.y} stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" />
+      <rect
+        x={anchor === "start" ? textX - 2 : textX - width + 2}
+        y={point.y - 14}
+        width={width}
+        height="28"
+        rx="4"
+        fill="#fff"
+      />
+      <text x={textX} y={point.y + 6} textAnchor={anchor} fill="#be123c" fontSize="18" fontWeight="700">
+        {label}
+      </text>
     </g>
   );
 }
