@@ -58,9 +58,9 @@ export function AromaticStructure({ id, compact = false }: { id: string; compact
   const isCyclooctatetraene = id === "cyclooctatetraene";
   const width = compact ? 250 : 320;
   const height = compact ? (isCyclooctatetraene ? 175 : 145) : (isCyclooctatetraene ? 220 : 180);
-  const center = { x: width / 2, y: isCyclooctatetraene ? height / 2 - 18 : height / 2 + 3 };
+  const center = { x: width / 2, y: isCyclooctatetraene ? height / 2 - 20 : height / 2 + 3 };
   const radius = compact ? 52 : 67;
-  const points = isCyclooctatetraene ? cyclooctatetraeneTub(center, compact ? 0.82 : 1) : polygon(structure.atoms, center, radius);
+  const points = isCyclooctatetraene ? cyclooctatetraeneOctagon(center, compact ? 0.86 : 1) : polygon(structure.atoms, center, radius);
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Structural formula" className="mx-auto h-auto w-full max-w-xs">
@@ -105,16 +105,16 @@ function polygon(atoms: number, center: Point, radius: number) {
   });
 }
 
-function cyclooctatetraeneTub(center: Point, scale: number): Point[] {
+function cyclooctatetraeneOctagon(center: Point, scale: number): Point[] {
   const raw = [
-    { x: -64, y: -18 },
-    { x: -32, y: -54 },
-    { x: 24, y: -62 },
-    { x: 64, y: -28 },
-    { x: 78, y: 18 },
-    { x: 42, y: 62 },
-    { x: -34, y: 58 },
-    { x: -78, y: 20 },
+    { x: -74, y: -36 },
+    { x: -36, y: -74 },
+    { x: 36, y: -74 },
+    { x: 74, y: -36 },
+    { x: 74, y: 36 },
+    { x: 36, y: 74 },
+    { x: -36, y: 74 },
+    { x: -74, y: 36 },
   ];
 
   return raw.map((point) => ({
