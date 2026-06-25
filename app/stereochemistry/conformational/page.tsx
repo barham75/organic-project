@@ -970,6 +970,16 @@ export default function ConformationalPage() {
     return data;
   }, [compound]);
 
+  const yAxisMax = useMemo(() => {
+    const highestEnergy = Math.max(...graphData.map((point) => point.energy));
+    return Math.max(6, Math.ceil(highestEnergy));
+  }, [graphData]);
+
+  const yAxisTicks = useMemo(
+    () => Array.from({ length: yAxisMax + 1 }, (_, index) => index),
+    [yAxisMax]
+  );
+
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-8">
       <section className="mx-auto max-w-7xl">
@@ -1147,7 +1157,7 @@ export default function ConformationalPage() {
               <LineChart data={graphData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="angle" />
-                <YAxis />
+                <YAxis domain={[0, yAxisMax]} ticks={yAxisTicks} allowDecimals={false} />
                 <Tooltip />
                 <Line type="monotone" dataKey="energy" strokeWidth={3} dot={false} />
                 <ReferenceDot x={angle} y={selectedTotalEnergy} r={8} label="Selected" />
