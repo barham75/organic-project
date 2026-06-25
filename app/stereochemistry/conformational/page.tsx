@@ -36,6 +36,8 @@ type Compound = {
   points: EnergyPoint[];
 };
 
+const KCAL_TO_KJ = 4.184;
+
 const compounds: Compound[] = [
   {
     id: "ethane",
@@ -45,7 +47,7 @@ const compounds: Compound[] = [
     frontLabels: ["H", "H", "H"],
     backLabels: ["H", "H", "H"],
     bonds: ["C1-C2"],
-    sourceNote: "Textbook value: rotational barrier about 2.9-3.0 kcal/mol.",
+    sourceNote: "Textbook value: rotational barrier about 12.1-12.6 kJ/mol.",
     points: [
       { angle: 0, type: "Eclipsed", total: 3.0, torsional: 3.0, steric: 0.0, note: "Three H-H eclipsing interactions." },
       { angle: 60, type: "Staggered", total: 0.0, torsional: 0.0, steric: 0.0, note: "Lowest energy staggered conformation." },
@@ -64,7 +66,7 @@ const compounds: Compound[] = [
     frontLabels: ["CH3", "H", "H"],
     backLabels: ["H", "H", "H"],
     bonds: ["C1-C2"],
-    sourceNote: "Textbook value: rotational barrier about 3.4 kcal/mol.",
+    sourceNote: "Textbook value: rotational barrier about 14.2 kJ/mol.",
     points: [
       { angle: 0, type: "Eclipsed", total: 3.4, torsional: 2.8, steric: 0.6, note: "CH3-H plus H-H eclipsing interactions." },
       { angle: 60, type: "Staggered", total: 0.0, torsional: 0.0, steric: 0.0, note: "Lowest energy staggered conformation." },
@@ -83,15 +85,15 @@ const compounds: Compound[] = [
     frontLabels: ["CH3", "H", "H"],
     backLabels: ["CH3", "H", "H"],
     bonds: ["C2-C3"],
-    sourceNote: "Textbook values: anti 0.0, gauche 0.9, eclipsed 3.6, fully eclipsed 5.0 kcal/mol.",
+    sourceNote: "Textbook values: anti 0.0, gauche 3.8, eclipsed 16, fully eclipsed 19 kJ/mol.",
     points: [
-      { angle: 0, type: "Fully Eclipsed", total: 5.0, torsional: 3.0, steric: 2.0, note: "CH3-CH3 eclipsing interaction; highest energy." },
-      { angle: 60, type: "Gauche", total: 0.9, torsional: 0.0, steric: 0.9, note: "Staggered but CH3 groups are close." },
-      { angle: 120, type: "Eclipsed", total: 3.6, torsional: 2.8, steric: 0.8, note: "CH3-H and H-H eclipsing interactions." },
+      { angle: 0, type: "Fully Eclipsed", total: 4.54, torsional: 2.54, steric: 2.0, note: "CH3-CH3 eclipsing interaction; highest energy." },
+      { angle: 60, type: "Gauche", total: 0.91, torsional: 0.0, steric: 0.91, note: "Staggered but CH3 groups are close." },
+      { angle: 120, type: "Eclipsed", total: 3.82, torsional: 3.0, steric: 0.82, note: "CH3-H and H-H eclipsing interactions." },
       { angle: 180, type: "Anti", total: 0.0, torsional: 0.0, steric: 0.0, note: "Most stable; CH3 groups are opposite." },
-      { angle: 240, type: "Eclipsed", total: 3.6, torsional: 2.8, steric: 0.8, note: "Equivalent eclipsed arrangement." },
-      { angle: 300, type: "Gauche", total: 0.9, torsional: 0.0, steric: 0.9, note: "Second gauche minimum." },
-      { angle: 360, type: "Fully Eclipsed", total: 5.0, torsional: 3.0, steric: 2.0, note: "Same as 0 degree." }
+      { angle: 240, type: "Eclipsed", total: 3.82, torsional: 3.0, steric: 0.82, note: "Equivalent eclipsed arrangement." },
+      { angle: 300, type: "Gauche", total: 0.91, torsional: 0.0, steric: 0.91, note: "Second gauche minimum." },
+      { angle: 360, type: "Fully Eclipsed", total: 4.54, torsional: 2.54, steric: 2.0, note: "Same as 0 degree." }
     ]
   },
   {
@@ -140,7 +142,7 @@ const compounds: Compound[] = [
     frontLabels: ["Cl", "H", "H"],
     backLabels: ["Cl", "H", "H"],
     bonds: ["C1-C2"],
-    sourceNote: "Reported anti-gauche difference about 4.3 kJ/mol = 1.03 kcal/mol; rotational barrier about 3.0 kcal/mol.",
+    sourceNote: "Reported anti-gauche difference about 4.3 kJ/mol; rotational barrier about 12.6 kJ/mol.",
     points: [
       { angle: 0, type: "Fully Eclipsed", total: 3.0, torsional: 2.0, steric: 1.0, note: "Cl-Cl eclipsed; high energy." },
       { angle: 60, type: "Gauche", total: 1.03, torsional: 0.0, steric: 1.03, note: "Gauche conformer is higher than anti." },
@@ -297,6 +299,10 @@ function polarToXY(cx: number, cy: number, r: number, deg: number) {
 
 function calculateTotalEnergy(point: Pick<EnergyPoint, "torsional" | "steric">) {
   return Number((point.torsional + point.steric).toFixed(2));
+}
+
+function toKjPerMol(kcalPerMol: number) {
+  return Number((kcalPerMol * KCAL_TO_KJ).toFixed(2));
 }
 
 function formatEnergy(value: number) {
@@ -685,7 +691,9 @@ function True3DViewer({ compound, angle, selected, showForces, onToggleForces }:
 
         ctx.fillStyle = "#e2e8f0";
         ctx.font = "700 13px Arial";
-        const valueText = origin.target === "minimum" ? `${origin.value} kcal/mol total` : `${origin.value} kcal/mol`;
+        const valueText = origin.target === "minimum"
+          ? `${formatEnergy(toKjPerMol(origin.value))} kJ/mol total`
+          : `${formatEnergy(toKjPerMol(origin.value))} kJ/mol`;
         ctx.fillText(`${origin.kind}: ${valueText}`, originBoxX + 46, y);
 
         ctx.fillStyle = "#94a3b8";
@@ -961,22 +969,23 @@ export default function ConformationalPage() {
   const compound = compounds.find((c) => c.id === compoundId) || compounds[0];
   const selected = interpolateEnergy(compound, angle);
   const selectedTotalEnergy = calculateTotalEnergy(selected);
+  const selectedTotalEnergyKj = toKjPerMol(selectedTotalEnergy);
 
   const graphData = useMemo(() => {
     const data = [];
     for (let a = 0; a <= 360; a += 5) {
-      data.push({ angle: a, energy: calculateTotalEnergy(interpolateEnergy(compound, a)) });
+      data.push({ angle: a, energy: toKjPerMol(calculateTotalEnergy(interpolateEnergy(compound, a))) });
     }
     return data;
   }, [compound]);
 
   const yAxisMax = useMemo(() => {
     const highestEnergy = Math.max(...graphData.map((point) => point.energy));
-    return Math.max(6, Math.ceil(highestEnergy));
+    return Math.max(20, Math.ceil(highestEnergy / 5) * 5);
   }, [graphData]);
 
   const yAxisTicks = useMemo(
-    () => Array.from({ length: yAxisMax + 1 }, (_, index) => index),
+    () => Array.from({ length: yAxisMax / 5 + 1 }, (_, index) => index * 5),
     [yAxisMax]
   );
 
@@ -1100,7 +1109,7 @@ export default function ConformationalPage() {
               </div>
               <div className="rounded-2xl bg-amber-50 p-4">
                 <p className="text-sm text-amber-700">Energy</p>
-                <p className="text-2xl font-bold text-amber-900">{formatEnergy(selectedTotalEnergy)} kcal/mol</p>
+                <p className="text-2xl font-bold text-amber-900">{formatEnergy(selectedTotalEnergyKj)} kJ/mol</p>
               </div>
             </div>
 
@@ -1109,7 +1118,7 @@ export default function ConformationalPage() {
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
               <p className="text-sm font-bold uppercase tracking-wide">Total energy calculation</p>
               <p className="mt-1 text-lg font-semibold">
-                E<sub>total</sub> = E<sub>torsional</sub> + E<sub>steric/electronic</sub> = {formatEnergy(selected.torsional)} + {formatEnergy(selected.steric)} = {formatEnergy(selectedTotalEnergy)} kcal/mol
+                E<sub>total</sub> = E<sub>torsional</sub> + E<sub>steric/electronic</sub> = {formatEnergy(toKjPerMol(selected.torsional))} + {formatEnergy(toKjPerMol(selected.steric))} = {formatEnergy(selectedTotalEnergyKj)} kJ/mol
               </p>
             </div>
 
@@ -1118,21 +1127,21 @@ export default function ConformationalPage() {
                 <thead className="bg-slate-100">
                   <tr>
                     <th className="p-3">Contribution</th>
-                    <th className="p-3">Value kcal/mol</th>
+                    <th className="p-3">Value kJ/mol</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-t">
                     <td className="p-3">Torsional Energy</td>
-                    <td className="p-3 font-semibold">{selected.torsional}</td>
+                    <td className="p-3 font-semibold">{formatEnergy(toKjPerMol(selected.torsional))}</td>
                   </tr>
                   <tr className="border-t">
                     <td className="p-3">Steric / Electronic Contribution</td>
-                    <td className="p-3 font-semibold">{selected.steric}</td>
+                    <td className="p-3 font-semibold">{formatEnergy(toKjPerMol(selected.steric))}</td>
                   </tr>
                   <tr className="border-t bg-slate-50">
                     <td className="p-3 font-bold">Total Relative Energy</td>
-                    <td className="p-3 font-bold">{formatEnergy(selectedTotalEnergy)}</td>
+                    <td className="p-3 font-bold">{formatEnergy(selectedTotalEnergyKj)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1150,7 +1159,7 @@ export default function ConformationalPage() {
 
         <div className="mt-6 rounded-3xl bg-white p-6 shadow">
           <h2 className="text-2xl font-bold text-slate-900">Energy Profile</h2>
-          <p className="mt-2 text-slate-600">X-axis: dihedral angle. Y-axis: relative energy in kcal/mol.</p>
+          <p className="mt-2 text-slate-600">X-axis: dihedral angle. Y-axis: relative energy in kJ/mol.</p>
 
           <div className="mt-6 h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1158,9 +1167,9 @@ export default function ConformationalPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="angle" />
                 <YAxis domain={[0, yAxisMax]} ticks={yAxisTicks} allowDecimals={false} />
-                <Tooltip />
+                <Tooltip formatter={(value) => [`${formatEnergy(Number(value))} kJ/mol`, "Energy"]} />
                 <Line type="monotone" dataKey="energy" strokeWidth={3} dot={false} />
-                <ReferenceDot x={angle} y={selectedTotalEnergy} r={8} label="Selected" />
+                <ReferenceDot x={angle} y={selectedTotalEnergyKj} r={8} label="Selected" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1177,7 +1186,7 @@ export default function ConformationalPage() {
                   <th className="p-3">Conformation</th>
                   <th className="p-3">Torsional</th>
                   <th className="p-3">Steric / Electronic</th>
-                  <th className="p-3">Total Energy kcal/mol</th>
+                  <th className="p-3">Total Energy kJ/mol</th>
                 </tr>
               </thead>
               <tbody>
@@ -1189,12 +1198,12 @@ export default function ConformationalPage() {
                   >
                     <td className="p-3 font-semibold">{p.angle}°</td>
                     <td className="p-3">{p.type}</td>
-                    <td className="p-3">{formatEnergy(p.torsional)}</td>
-                    <td className="p-3">{formatEnergy(p.steric)}</td>
+                    <td className="p-3">{formatEnergy(toKjPerMol(p.torsional))}</td>
+                    <td className="p-3">{formatEnergy(toKjPerMol(p.steric))}</td>
                     <td className="p-3 font-bold">
-                      {formatEnergy(calculateTotalEnergy(p))}
+                      {formatEnergy(toKjPerMol(calculateTotalEnergy(p)))}
                       <span className="block text-xs font-normal text-slate-500">
-                        {formatEnergy(p.torsional)} + {formatEnergy(p.steric)}
+                        {formatEnergy(toKjPerMol(p.torsional))} + {formatEnergy(toKjPerMol(p.steric))}
                       </span>
                     </td>
                   </tr>
